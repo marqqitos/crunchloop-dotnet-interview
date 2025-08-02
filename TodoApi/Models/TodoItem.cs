@@ -7,4 +7,8 @@ public class TodoItem
     public bool IsCompleted { get; set; }
     public long TodoListId { get; set; }
     public TodoList TodoList { get; set; } = null!;
+    
+    // Basic sync tracking fields
+    public string? ExternalId { get; set; }           // Maps to external API string ID
+    public DateTime LastModified { get; set; } = DateTime.UtcNow;  // Track when locally modified
 }
