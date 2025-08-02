@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Controllers;
 using TodoApi.Dtos;
-using TodoApi.Models;
+using TodoApi.Tests.Builders;
 
 namespace TodoApi.Tests;
 
@@ -18,12 +18,28 @@ public class TodoItemsControllerTests
 
     private void PopulateDatabaseContext(TodoContext context)
     {
-        context.TodoList.Add(new TodoList { Id = 1, Name = "Work Tasks" });
-        context.TodoList.Add(new TodoList { Id = 2, Name = "Personal Tasks" });
+        context.TodoList.Add(TodoListBuilder.Create()
+            .WithName("Work Tasks")
+            .Build());
+        context.TodoList.Add(TodoListBuilder.Create()
+            .WithName("Personal Tasks")
+            .Build());
         
-        context.TodoItem.Add(new TodoItem { Id = 1, Description = "Task 1", IsCompleted = false, TodoListId = 1 });
-        context.TodoItem.Add(new TodoItem { Id = 2, Description = "Task 2", IsCompleted = true, TodoListId = 1 });
-        context.TodoItem.Add(new TodoItem { Id = 3, Description = "Task 3", IsCompleted = false, TodoListId = 2 });
+        context.TodoItem.Add(TodoItemBuilder.Create()
+            .WithDescription("Task 1")
+            .WithCompleted(false)
+            .WithTodoListId(1)
+            .Build());
+        context.TodoItem.Add(TodoItemBuilder.Create()
+            .WithDescription("Task 2")
+            .WithCompleted(true)
+            .WithTodoListId(1)
+            .Build());
+        context.TodoItem.Add(TodoItemBuilder.Create()
+            .WithDescription("Task 3")
+            .WithCompleted(false)
+            .WithTodoListId(2)
+            .Build());
         
         context.SaveChanges();
     }

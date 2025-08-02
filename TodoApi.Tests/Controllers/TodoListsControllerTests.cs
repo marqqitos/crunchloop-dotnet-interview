@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Controllers;
 using TodoApi.Dtos;
-using TodoApi.Models;
+using TodoApi.Tests.Builders;
 
 namespace TodoApi.Tests;
 
@@ -18,8 +18,22 @@ public class TodoListsControllerTests
 
     private void PopulateDatabaseContext(TodoContext context)
     {
-        context.TodoList.Add(new TodoList { Id = 1, Name = "Task 1", Items = new List<TodoItem> { new TodoItem { Id = 1, Description = "Item 1", IsCompleted = false } } });
-        context.TodoList.Add(new TodoList { Id = 2, Name = "Task 2", Items = new List<TodoItem> { new TodoItem { Id = 2, Description = "Item 2", IsCompleted = false } } });
+        context.TodoList.Add(TodoListBuilder.Create()
+            .WithName("Task 1")
+            .WithItem(TodoItemBuilder.Create()
+                .WithDescription("Item 1")
+                .WithCompleted(false)
+                .Build())
+            .Build());
+
+        context.TodoList.Add(TodoListBuilder.Create()
+            .WithName("Task 2")
+            .WithItem(TodoItemBuilder.Create()
+                .WithDescription("Item 2")
+                .WithCompleted(false)
+                .Build())
+            .Build());
+            
         context.SaveChanges();
     }
 
