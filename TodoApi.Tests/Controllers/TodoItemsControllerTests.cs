@@ -151,7 +151,7 @@ public class TodoItemsControllerTests
             var item = okResult.Value as TodoItemResponse;
             Assert.Equal(1, item.Id);
             Assert.Equal("Task 1", item.Description);
-            Assert.False(item.IsCompleted);
+            Assert.False(item.Completed);
             Assert.Equal(1, item.TodoListId);
         }
     }
@@ -164,7 +164,7 @@ public class TodoItemsControllerTests
             PopulateDatabaseContext(context);
 
             var controller = new TodoItemsController(context);
-            var updatePayload = new UpdateTodoItem { Description = "Updated Task", IsCompleted = true };
+            var updatePayload = new UpdateTodoItem { Description = "Updated Task", Completed = true };
 
             var result = await controller.PutTodoItem(999, 1, updatePayload);
 
@@ -182,7 +182,7 @@ public class TodoItemsControllerTests
             PopulateDatabaseContext(context);
 
             var controller = new TodoItemsController(context);
-            var updatePayload = new UpdateTodoItem { Description = "Updated Task", IsCompleted = true };
+            var updatePayload = new UpdateTodoItem { Description = "Updated Task", Completed = true };
 
             var result = await controller.PutTodoItem(1, 999, updatePayload);
 
@@ -200,7 +200,7 @@ public class TodoItemsControllerTests
             PopulateDatabaseContext(context);
 
             var controller = new TodoItemsController(context);
-            var updatePayload = new UpdateTodoItem { Description = "Updated Task", IsCompleted = true };
+            var updatePayload = new UpdateTodoItem { Description = "Updated Task", Completed = true };
 
             var result = await controller.PutTodoItem(2, 1, updatePayload); // Item 1 is in TodoList 1, not 2
 
@@ -218,7 +218,7 @@ public class TodoItemsControllerTests
             PopulateDatabaseContext(context);
 
             var controller = new TodoItemsController(context);
-            var updatePayload = new UpdateTodoItem { Description = "Updated Task 1", IsCompleted = true };
+            var updatePayload = new UpdateTodoItem { Description = "Updated Task 1", Completed = true };
 
             var result = await controller.PutTodoItem(1, 1, updatePayload);
 
@@ -228,7 +228,7 @@ public class TodoItemsControllerTests
             
             Assert.Equal(1, updatedItem.Id);
             Assert.Equal("Updated Task 1", updatedItem.Description);
-            Assert.True(updatedItem.IsCompleted);
+            Assert.True(updatedItem.Completed);
             Assert.Equal(1, updatedItem.TodoListId);
 
             // Verify the item was actually updated in the database
@@ -246,7 +246,7 @@ public class TodoItemsControllerTests
             PopulateDatabaseContext(context);
 
             var controller = new TodoItemsController(context);
-            var createPayload = new CreateTodoItem { Description = "New Task", IsCompleted = false };
+            var createPayload = new CreateTodoItem { Description = "New Task", Completed = false };
 
             var result = await controller.PostTodoItem(999, createPayload);
 
@@ -264,7 +264,7 @@ public class TodoItemsControllerTests
             PopulateDatabaseContext(context);
 
             var controller = new TodoItemsController(context);
-            var createPayload = new CreateTodoItem { Description = "New Task", IsCompleted = false };
+            var createPayload = new CreateTodoItem { Description = "New Task", Completed = false };
 
             var result = await controller.PostTodoItem(1, createPayload);
 
@@ -273,7 +273,7 @@ public class TodoItemsControllerTests
             var createdItem = createdResult.Value as TodoItemResponse;
             
             Assert.Equal("New Task", createdItem.Description);
-            Assert.False(createdItem.IsCompleted);
+            Assert.False(createdItem.Completed);
             Assert.Equal(1, createdItem.TodoListId);
             Assert.True(createdItem.Id > 0); // Should have generated ID
 
@@ -293,7 +293,7 @@ public class TodoItemsControllerTests
             PopulateDatabaseContext(context);
 
             var controller = new TodoItemsController(context);
-            var createPayload = new CreateTodoItem { Description = "Completed Task", IsCompleted = true };
+            var createPayload = new CreateTodoItem { Description = "Completed Task", Completed = true };
 
             var result = await controller.PostTodoItem(2, createPayload);
 
@@ -302,7 +302,7 @@ public class TodoItemsControllerTests
             var createdItem = createdResult.Value as TodoItemResponse;
             
             Assert.Equal("Completed Task", createdItem.Description);
-            Assert.True(createdItem.IsCompleted);
+            Assert.True(createdItem.Completed);
             Assert.Equal(2, createdItem.TodoListId);
         }
     }

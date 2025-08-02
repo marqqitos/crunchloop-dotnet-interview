@@ -32,7 +32,7 @@ namespace TodoApi.Controllers
                 {
                     Id = item.Id,
                     Description = item.Description,
-                    IsCompleted = item.IsCompleted,
+                    Completed = item.IsCompleted,
                     TodoListId = item.TodoListId
                 })
                 .ToListAsync();
@@ -56,7 +56,7 @@ namespace TodoApi.Controllers
                 {
                     Id = item.Id,
                     Description = item.Description,
-                    IsCompleted = item.IsCompleted,
+                    Completed = item.IsCompleted,
                     TodoListId = item.TodoListId
                 })
                 .FirstOrDefaultAsync();
@@ -89,7 +89,7 @@ namespace TodoApi.Controllers
             }
 
             todoItem.Description = payload.Description;
-            todoItem.IsCompleted = payload.IsCompleted;
+            todoItem.IsCompleted = payload.Completed;
             
             await _context.SaveChangesAsync();
 
@@ -97,7 +97,7 @@ namespace TodoApi.Controllers
             {
                 Id = todoItem.Id,
                 Description = todoItem.Description,
-                IsCompleted = todoItem.IsCompleted,
+                Completed = todoItem.IsCompleted,
                 TodoListId = todoItem.TodoListId
             };
 
@@ -118,7 +118,7 @@ namespace TodoApi.Controllers
             var todoItem = new TodoItem 
             { 
                 Description = payload.Description,
-                IsCompleted = payload.IsCompleted,
+                IsCompleted = payload.Completed,
                 TodoListId = todoListId
             };
 
@@ -129,7 +129,7 @@ namespace TodoApi.Controllers
             {
                 Id = todoItem.Id,
                 Description = todoItem.Description,
-                IsCompleted = todoItem.IsCompleted,
+                Completed = todoItem.IsCompleted,
                 TodoListId = todoItem.TodoListId
             };
 

@@ -30,7 +30,7 @@ namespace TodoApi.Controllers
                     {
                         Id = item.Id,
                         Description = item.Description,
-                        IsCompleted = item.IsCompleted,
+                        Completed = item.IsCompleted,
                         TodoListId = item.TodoListId
                     }).ToList()
                 })
@@ -54,7 +54,7 @@ namespace TodoApi.Controllers
                     {
                         Id = item.Id,
                         Description = item.Description,
-                        IsCompleted = item.IsCompleted,
+                        Completed = item.IsCompleted,
                         TodoListId = item.TodoListId
                     }).ToList()
                 })
@@ -93,7 +93,7 @@ namespace TodoApi.Controllers
                 {
                     Id = item.Id,
                     Description = item.Description,
-                    IsCompleted = item.IsCompleted,
+                    Completed = item.IsCompleted,
                     TodoListId = item.TodoListId
                 }).ToList()
             };
