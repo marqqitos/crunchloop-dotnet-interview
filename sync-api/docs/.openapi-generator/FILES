@@ -1,0 +1,10 @@
+.openapi-generator-ignore
+Apis/TodoItemApi.md
+Apis/TodoListApi.md
+Models/CreateTodoItemBody.md
+Models/CreateTodoListBody.md
+Models/TodoItem.md
+Models/TodoList.md
+Models/UpdateTodoItemBody.md
+Models/UpdateTodoListBody.md
+README.md

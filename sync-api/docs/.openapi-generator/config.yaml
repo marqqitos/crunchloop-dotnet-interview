@@ -1,0 +1,6 @@
+generatorName: markdown
+outputDir: docs/
+inputSpec: docs/external-api.yaml
+gitUserId: crunchloop
+gitRepoId: challenge-senior-engineer
+additionalProperties:
