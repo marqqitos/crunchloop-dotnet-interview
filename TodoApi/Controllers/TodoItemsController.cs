@@ -1,0 +1,163 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using TodoApi.Dtos;
+using TodoApi.Models;
+
+namespace TodoApi.Controllers
+{
+    [Route("api/todolists/{todoListId}/items")]
+    [ApiController]
+    public class TodoItemsController : ControllerBase
+    {
+        private readonly TodoContext _context;
+
+        public TodoItemsController(TodoContext context)
+        {
+            _context = context;
+        }
+
+        // GET: api/todolists/5/items
+        [HttpGet]
+        public async Task<ActionResult<IList<TodoItemResponse>>> GetTodoItems(long todoListId)
+        {
+            var todoList = await _context.TodoList.FindAsync(todoListId);
+            if (todoList == null)
+            {
+                return NotFound($"TodoList with id {todoListId} not found");
+            }
+
+            var todoItems = await _context.TodoItem
+                .Where(item => item.TodoListId == todoListId)
+                .Select(item => new TodoItemResponse
+                {
+                    Id = item.Id,
+                    Description = item.Description,
+                    IsCompleted = item.IsCompleted,
+                    TodoListId = item.TodoListId
+                })
+                .ToListAsync();
+
+            return Ok(todoItems);
+        }
+
+        // GET: api/todolists/5/items/3
+        [HttpGet("{id}")]
+        public async Task<ActionResult<TodoItemResponse>> GetTodoItem(long todoListId, long id)
+        {
+            var todoList = await _context.TodoList.FindAsync(todoListId);
+            if (todoList == null)
+            {
+                return NotFound($"TodoList with id {todoListId} not found");
+            }
+
+            var todoItem = await _context.TodoItem
+                .Where(item => item.Id == id && item.TodoListId == todoListId)
+                .Select(item => new TodoItemResponse
+                {
+                    Id = item.Id,
+                    Description = item.Description,
+                    IsCompleted = item.IsCompleted,
+                    TodoListId = item.TodoListId
+                })
+                .FirstOrDefaultAsync();
+
+            if (todoItem == null)
+            {
+                return NotFound($"TodoItem with id {id} not found in TodoList {todoListId}");
+            }
+
+            return Ok(todoItem);
+        }
+
+        // PUT: api/todolists/5/items/3
+        // To protect from over-posting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPut("{id}")]
+        public async Task<ActionResult<TodoItemResponse>> PutTodoItem(long todoListId, long id, UpdateTodoItem payload)
+        {
+            var todoList = await _context.TodoList.FindAsync(todoListId);
+            if (todoList == null)
+            {
+                return NotFound($"TodoList with id {todoListId} not found");
+            }
+
+            var todoItem = await _context.TodoItem
+                .FirstOrDefaultAsync(item => item.Id == id && item.TodoListId == todoListId);
+
+            if (todoItem == null)
+            {
+                return NotFound($"TodoItem with id {id} not found in TodoList {todoListId}");
+            }
+
+            todoItem.Description = payload.Description;
+            todoItem.IsCompleted = payload.IsCompleted;
+            
+            await _context.SaveChangesAsync();
+
+            var response = new TodoItemResponse
+            {
+                Id = todoItem.Id,
+                Description = todoItem.Description,
+                IsCompleted = todoItem.IsCompleted,
+                TodoListId = todoItem.TodoListId
+            };
+
+            return Ok(response);
+        }
+
+        // POST: api/todolists/5/items
+        // To protect from over-posting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPost]
+        public async Task<ActionResult<TodoItemResponse>> PostTodoItem(long todoListId, CreateTodoItem payload)
+        {
+            var todoList = await _context.TodoList.FindAsync(todoListId);
+            if (todoList == null)
+            {
+                return NotFound($"TodoList with id {todoListId} not found");
+            }
+
+            var todoItem = new TodoItem 
+            { 
+                Description = payload.Description,
+                IsCompleted = payload.IsCompleted,
+                TodoListId = todoListId
+            };
+
+            _context.TodoItem.Add(todoItem);
+            await _context.SaveChangesAsync();
+
+            var response = new TodoItemResponse
+            {
+                Id = todoItem.Id,
+                Description = todoItem.Description,
+                IsCompleted = todoItem.IsCompleted,
+                TodoListId = todoItem.TodoListId
+            };
+
+            return CreatedAtAction("GetTodoItem", new { todoListId = todoListId, id = todoItem.Id }, response);
+        }
+
+        // DELETE: api/todolists/5/items/3
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteTodoItem(long todoListId, long id)
+        {
+            var todoList = await _context.TodoList.FindAsync(todoListId);
+            if (todoList == null)
+            {
+                return NotFound($"TodoList with id {todoListId} not found");
+            }
+
+            var todoItem = await _context.TodoItem
+                .FirstOrDefaultAsync(item => item.Id == id && item.TodoListId == todoListId);
+
+            if (todoItem == null)
+            {
+                return NotFound($"TodoItem with id {id} not found in TodoList {todoListId}");
+            }
+
+            _context.TodoItem.Remove(todoItem);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+    }
+}

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Controllers;
+using TodoApi.Dtos;
 using TodoApi.Models;
 
 namespace TodoApi.Tests;
@@ -17,8 +18,8 @@ public class TodoListsControllerTests
 
     private void PopulateDatabaseContext(TodoContext context)
     {
-        context.TodoList.Add(new TodoList { Id = 1, Name = "Task 1" });
-        context.TodoList.Add(new TodoList { Id = 2, Name = "Task 2" });
+        context.TodoList.Add(new TodoList { Id = 1, Name = "Task 1", Items = new List<TodoItem> { new TodoItem { Id = 1, Description = "Item 1", IsCompleted = false } } });
+        context.TodoList.Add(new TodoList { Id = 2, Name = "Task 2", Items = new List<TodoItem> { new TodoItem { Id = 2, Description = "Item 2", IsCompleted = false } } });
         context.SaveChanges();
     }
 
@@ -34,7 +35,7 @@ public class TodoListsControllerTests
             var result = await controller.GetTodoLists();
 
             Assert.IsType<OkObjectResult>(result.Result);
-            Assert.Equal(2, ((result.Result as OkObjectResult).Value as IList<TodoList>).Count);
+            Assert.Equal(2, ((result.Result as OkObjectResult).Value as IList<TodoListResponse>).Count);
         }
     }
 
@@ -50,7 +51,7 @@ public class TodoListsControllerTests
             var result = await controller.GetTodoList(1);
 
             Assert.IsType<OkObjectResult>(result.Result);
-            Assert.Equal(1, ((result.Result as OkObjectResult).Value as TodoList).Id);
+            Assert.Equal(1, ((result.Result as OkObjectResult).Value as TodoListResponse).Id);
         }
     }
 
@@ -68,7 +69,7 @@ public class TodoListsControllerTests
                 new Dtos.UpdateTodoList { Name = "Task 3" }
             );
 
-            Assert.IsType<NotFoundResult>(result);
+            Assert.IsType<NotFoundResult>(result.Result);
         }
     }
 
@@ -87,7 +88,9 @@ public class TodoListsControllerTests
                 new Dtos.UpdateTodoList { Name = "Changed Task 2" }
             );
 
-            Assert.IsType<OkObjectResult>(result);
+            Assert.IsType<OkObjectResult>(result.Result);
+            Assert.Equal(2, ((result.Result as OkObjectResult).Value as TodoListResponse).Id);
+            Assert.Equal("Changed Task 2", ((result.Result as OkObjectResult).Value as TodoListResponse).Name);
         }
     }
 

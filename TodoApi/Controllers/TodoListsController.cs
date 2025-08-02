@@ -18,16 +18,47 @@ namespace TodoApi.Controllers
 
         // GET: api/todolists
         [HttpGet]
-        public async Task<ActionResult<IList<TodoList>>> GetTodoLists()
+        public async Task<ActionResult<IList<TodoListResponse>>> GetTodoLists()
         {
-            return Ok(await _context.TodoList.ToListAsync());
+            var todoLists = await _context.TodoList
+                .Include(tl => tl.Items)
+                .Select(tl => new TodoListResponse
+                {
+                    Id = tl.Id,
+                    Name = tl.Name,
+                    Items = tl.Items.Select(item => new TodoItemResponse
+                    {
+                        Id = item.Id,
+                        Description = item.Description,
+                        IsCompleted = item.IsCompleted,
+                        TodoListId = item.TodoListId
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return Ok(todoLists);
         }
 
         // GET: api/todolists/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<TodoList>> GetTodoList(long id)
+        public async Task<ActionResult<TodoListResponse>> GetTodoList(long id)
         {
-            var todoList = await _context.TodoList.FindAsync(id);
+            var todoList = await _context.TodoList
+                .Include(tl => tl.Items)
+                .Where(tl => tl.Id == id)
+                .Select(tl => new TodoListResponse
+                {
+                    Id = tl.Id,
+                    Name = tl.Name,
+                    Items = tl.Items.Select(item => new TodoItemResponse
+                    {
+                        Id = item.Id,
+                        Description = item.Description,
+                        IsCompleted = item.IsCompleted,
+                        TodoListId = item.TodoListId
+                    }).ToList()
+                })
+                .FirstOrDefaultAsync();
 
             if (todoList == null)
             {
@@ -40,9 +71,11 @@ namespace TodoApi.Controllers
         // PUT: api/todolists/5
         // To protect from over-posting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<ActionResult> PutTodoList(long id, UpdateTodoList payload)
+        public async Task<ActionResult<TodoListResponse>> PutTodoList(long id, UpdateTodoList payload)
         {
-            var todoList = await _context.TodoList.FindAsync(id);
+            var todoList = await _context.TodoList
+                .Include(tl => tl.Items)
+                .FirstOrDefaultAsync(tl => tl.Id == id);
 
             if (todoList == null)
             {
@@ -52,20 +85,40 @@ namespace TodoApi.Controllers
             todoList.Name = payload.Name;
             await _context.SaveChangesAsync();
 
-            return Ok(todoList);
+            var response = new TodoListResponse
+            {
+                Id = todoList.Id,
+                Name = todoList.Name,
+                Items = todoList.Items.Select(item => new TodoItemResponse
+                {
+                    Id = item.Id,
+                    Description = item.Description,
+                    IsCompleted = item.IsCompleted,
+                    TodoListId = item.TodoListId
+                }).ToList()
+            };
+
+            return Ok(response);
         }
 
         // POST: api/todolists
         // To protect from over-posting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<TodoList>> PostTodoList(CreateTodoList payload)
+        public async Task<ActionResult<TodoListResponse>> PostTodoList(CreateTodoList payload)
         {
             var todoList = new TodoList { Name = payload.Name };
 
             _context.TodoList.Add(todoList);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetTodoList", new { id = todoList.Id }, todoList);
+            var response = new TodoListResponse
+            {
+                Id = todoList.Id,
+                Name = todoList.Name,
+                Items = new List<TodoItemResponse>()
+            };
+
+            return CreatedAtAction("GetTodoList", new { id = todoList.Id }, response);
         }
 
         // DELETE: api/todolists/5
