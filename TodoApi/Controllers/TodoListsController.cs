@@ -83,6 +83,7 @@ namespace TodoApi.Controllers
             }
 
             todoList.Name = payload.Name;
+            todoList.LastModified = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             var response = new TodoListResponse
@@ -106,7 +107,11 @@ namespace TodoApi.Controllers
         [HttpPost]
         public async Task<ActionResult<TodoListResponse>> PostTodoList(CreateTodoList payload)
         {
-            var todoList = new TodoList { Name = payload.Name };
+            var todoList = new TodoList 
+            { 
+                Name = payload.Name,
+                LastModified = DateTime.UtcNow
+            };
 
             _context.TodoList.Add(todoList);
             await _context.SaveChangesAsync();

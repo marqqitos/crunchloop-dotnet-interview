@@ -90,6 +90,7 @@ namespace TodoApi.Controllers
 
             todoItem.Description = payload.Description;
             todoItem.IsCompleted = payload.Completed;
+            todoItem.LastModified = DateTime.UtcNow;
             
             await _context.SaveChangesAsync();
 
@@ -119,7 +120,8 @@ namespace TodoApi.Controllers
             { 
                 Description = payload.Description,
                 IsCompleted = payload.Completed,
-                TodoListId = todoListId
+                TodoListId = todoListId,
+                LastModified = DateTime.UtcNow
             };
 
             _context.TodoItem.Add(todoItem);
