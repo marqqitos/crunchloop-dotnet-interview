@@ -17,23 +17,65 @@ public class SyncController : ControllerBase
     }
 
     /// <summary>
-    /// Manually trigger sync of TodoLists to external API
+    /// Manually trigger sync of TodoLists to external API (outbound: Local → External)
     /// </summary>
     [HttpPost("todolists")]
     public async Task<IActionResult> SyncTodoLists()
     {
         try
         {
-            _logger.LogInformation("Manual sync triggered via API");
+            _logger.LogInformation("Manual outbound sync triggered via API");
             
             await _syncService.SyncTodoListsToExternalAsync();
             
-            return Ok(new { message = "TodoLists sync completed successfully" });
+            return Ok(new { message = "Outbound TodoLists sync completed successfully" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Manual sync failed");
-            return StatusCode(500, new { error = "Sync failed", details = ex.Message });
+            _logger.LogError(ex, "Manual outbound sync failed");
+            return StatusCode(500, new { error = "Outbound sync failed", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Manually trigger sync of TodoLists from external API (inbound: External → Local)
+    /// </summary>
+    [HttpPost("todolists/inbound")]
+    public async Task<IActionResult> SyncTodoListsFromExternal()
+    {
+        try
+        {
+            _logger.LogInformation("Manual inbound sync triggered via API");
+            
+            await _syncService.SyncTodoListsFromExternalAsync();
+            
+            return Ok(new { message = "Inbound TodoLists sync completed successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Manual inbound sync failed");
+            return StatusCode(500, new { error = "Inbound sync failed", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Manually trigger bidirectional sync of TodoLists (Local ↔ External)
+    /// </summary>
+    [HttpPost("todolists/bidirectional")]
+    public async Task<IActionResult> PerformFullSync()
+    {
+        try
+        {
+            _logger.LogInformation("Manual bidirectional sync triggered via API");
+            
+            await _syncService.PerformFullSyncAsync();
+            
+            return Ok(new { message = "Bidirectional TodoLists sync completed successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Manual bidirectional sync failed");
+            return StatusCode(500, new { error = "Bidirectional sync failed", details = ex.Message });
         }
     }
 }

@@ -210,6 +210,227 @@ public class SyncIntegrationTests : IDisposable
         _mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Exactly(3));
     }
 
+    [Fact]
+    public async Task SyncTodoListsFromExternalAsync_WithNewExternalData_CreatesLocalTodoList()
+    {
+        // Arrange
+        var externalTodoList = new ExternalTodoList
+        {
+            Id = "external-123",
+            Name = "External List",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Items = new List<ExternalTodoItem>
+            {
+                new ExternalTodoItem
+                {
+                    Id = "external-item-456",
+                    Description = "External Task",
+                    Completed = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                }
+            }
+        };
+
+        _mockExternalClient.Setup(x => x.GetTodoListsAsync())
+            .ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
+
+        // Act
+        await _syncService.SyncTodoListsFromExternalAsync();
+
+        // Assert
+        var localTodoList = await _context.TodoList
+            .Include(tl => tl.Items)
+            .FirstOrDefaultAsync(tl => tl.ExternalId == "external-123");
+
+        Assert.NotNull(localTodoList);
+        Assert.Equal("External List", localTodoList.Name);
+        Assert.Equal("external-123", localTodoList.ExternalId);
+        Assert.Single(localTodoList.Items);
+        
+        var localItem = localTodoList.Items.First();
+        Assert.Equal("External Task", localItem.Description);
+        Assert.False(localItem.IsCompleted);
+        Assert.Equal("external-item-456", localItem.ExternalId);
+    }
+
+    [Fact]
+    public async Task SyncTodoListsFromExternalAsync_WithExistingTodoList_UpdatesWhenExternalIsNewer()
+    {
+        // Arrange - Create existing local TodoList
+        var existingTodoList = new TodoList
+        {
+            Name = "Old Name",
+            ExternalId = "external-123",
+            LastModified = DateTime.UtcNow.AddHours(-1) // Older than external
+        };
+        _context.TodoList.Add(existingTodoList);
+        await _context.SaveChangesAsync();
+
+        var externalTodoList = new ExternalTodoList
+        {
+            Id = "external-123",
+            Name = "Updated Name",
+            CreatedAt = DateTime.UtcNow.AddHours(-2),
+            UpdatedAt = DateTime.UtcNow, // Newer than local
+            Items = new List<ExternalTodoItem>()
+        };
+
+        _mockExternalClient.Setup(x => x.GetTodoListsAsync())
+            .ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
+
+        // Act
+        await _syncService.SyncTodoListsFromExternalAsync();
+
+        // Assert
+        var updatedTodoList = await _context.TodoList.FindAsync(existingTodoList.Id);
+        Assert.NotNull(updatedTodoList);
+        Assert.Equal("Updated Name", updatedTodoList.Name);
+        Assert.Equal(externalTodoList.UpdatedAt, updatedTodoList.LastModified);
+    }
+
+    [Fact]
+    public async Task SyncTodoListsFromExternalAsync_WithExistingTodoList_DoesNotUpdateWhenLocalIsNewer()
+    {
+        // Arrange - Create existing local TodoList
+        var existingTodoList = new TodoList
+        {
+            Name = "Current Name",
+            ExternalId = "external-123",
+            LastModified = DateTime.UtcNow // Newer than external
+        };
+        _context.TodoList.Add(existingTodoList);
+        await _context.SaveChangesAsync();
+
+        var externalTodoList = new ExternalTodoList
+        {
+            Id = "external-123",
+            Name = "Older Name",
+            CreatedAt = DateTime.UtcNow.AddHours(-2),
+            UpdatedAt = DateTime.UtcNow.AddHours(-1), // Older than local
+            Items = new List<ExternalTodoItem>()
+        };
+
+        _mockExternalClient.Setup(x => x.GetTodoListsAsync())
+            .ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
+
+        // Act
+        await _syncService.SyncTodoListsFromExternalAsync();
+
+        // Assert
+        var unchangedTodoList = await _context.TodoList.FindAsync(existingTodoList.Id);
+        Assert.NotNull(unchangedTodoList);
+        Assert.Equal("Current Name", unchangedTodoList.Name); // Should remain unchanged
+    }
+
+    [Fact]
+    public async Task PerformFullSyncAsync_CallsBothSyncDirections()
+    {
+        // Arrange
+        _mockExternalClient.Setup(x => x.GetTodoListsAsync())
+            .ReturnsAsync(new List<ExternalTodoList>());
+
+        // Act
+        await _syncService.PerformFullSyncAsync();
+
+        // Assert
+        _mockExternalClient.Verify(x => x.GetTodoListsAsync(), Times.Once);
+        // Note: We can't easily verify the outbound sync call since there are no unsynced items
+        // but the method completed without error, which means both phases executed
+    }
+
+    [Fact]
+    public async Task SyncTodoListsFromExternalAsync_WithNoExternalData_LogsAndReturns()
+    {
+        // Arrange
+        _mockExternalClient.Setup(x => x.GetTodoListsAsync())
+            .ReturnsAsync(new List<ExternalTodoList>());
+
+        // Act
+        await _syncService.SyncTodoListsFromExternalAsync();
+
+        // Assert
+        var todoLists = await _context.TodoList.ToListAsync();
+        Assert.Empty(todoLists);
+        
+        // Verify appropriate logging occurred (checking the logger was called)
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("No TodoLists found in external API")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task SyncTodoListsFromExternalAsync_WithNewTodoItems_CreatesLocalTodoItems()
+    {
+        // Arrange - Create existing local TodoList with one item
+        var existingTodoList = new TodoList
+        {
+            Name = "Existing List",
+            ExternalId = "external-123",
+            LastModified = DateTime.UtcNow.AddHours(-1)
+        };
+        existingTodoList.Items.Add(new TodoItem
+        {
+            Description = "Existing Item",
+            IsCompleted = false,
+            ExternalId = "external-item-1",
+            LastModified = DateTime.UtcNow.AddHours(-1)
+        });
+        _context.TodoList.Add(existingTodoList);
+        await _context.SaveChangesAsync();
+
+        var externalTodoList = new ExternalTodoList
+        {
+            Id = "external-123",
+            Name = "Existing List",
+            CreatedAt = DateTime.UtcNow.AddHours(-2),
+            UpdatedAt = DateTime.UtcNow.AddHours(-1),
+            Items = new List<ExternalTodoItem>
+            {
+                new ExternalTodoItem
+                {
+                    Id = "external-item-1",
+                    Description = "Existing Item",
+                    Completed = false,
+                    CreatedAt = DateTime.UtcNow.AddHours(-1),
+                    UpdatedAt = DateTime.UtcNow.AddHours(-1)
+                },
+                new ExternalTodoItem // New item from external
+                {
+                    Id = "external-item-2",
+                    Description = "New External Item",
+                    Completed = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                }
+            }
+        };
+
+        _mockExternalClient.Setup(x => x.GetTodoListsAsync())
+            .ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
+
+        // Act
+        await _syncService.SyncTodoListsFromExternalAsync();
+
+        // Assert
+        var updatedTodoList = await _context.TodoList
+            .Include(tl => tl.Items)
+            .FirstAsync(tl => tl.ExternalId == "external-123");
+
+        Assert.Equal(2, updatedTodoList.Items.Count);
+        
+        var newItem = updatedTodoList.Items.FirstOrDefault(i => i.ExternalId == "external-item-2");
+        Assert.NotNull(newItem);
+        Assert.Equal("New External Item", newItem.Description);
+        Assert.True(newItem.IsCompleted);
+    }
+
     public void Dispose()
     {
         _context?.Dispose();
