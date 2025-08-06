@@ -8,6 +8,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<ExternalApiOptions>(
     builder.Configuration.GetSection(ExternalApiOptions.SectionName));
 
+// Configure retry policy options
+builder.Services.Configure<RetryOptions>(
+    builder.Configuration.GetSection(RetryOptions.SectionName));
+
 builder
     .Services.AddDbContext<TodoContext>(opt =>
         opt.UseSqlServer(builder.Configuration.GetConnectionString("TodoContext"))
@@ -16,6 +20,7 @@ builder
     .AddControllers();
 
 // Register sync services
+builder.Services.AddScoped<IRetryPolicyService, RetryPolicyService>();
 builder.Services.AddScoped<IConflictResolver, ConflictResolver>();
 builder.Services.AddScoped<ISyncService, TodoSyncService>();
 

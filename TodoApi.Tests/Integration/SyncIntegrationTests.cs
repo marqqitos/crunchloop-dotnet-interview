@@ -12,6 +12,7 @@ public class SyncIntegrationTests : IDisposable
     private readonly TodoContext _context;
     private readonly Mock<IExternalTodoApiClient> _mockExternalClient;
     private readonly Mock<IConflictResolver> _mockConflictResolver;
+    private readonly Mock<IRetryPolicyService> _mockRetryPolicyService;
     private readonly Mock<ILogger<TodoSyncService>> _mockLogger;
     private readonly TodoSyncService _syncService;
 
@@ -22,13 +23,19 @@ public class SyncIntegrationTests : IDisposable
             .Options;
         _context = new TodoContext(options);
 
-        _mockExternalClient = new Mock<IExternalTodoApiClient>();
+                _mockExternalClient = new Mock<IExternalTodoApiClient>();
         _mockConflictResolver = new Mock<IConflictResolver>();
+        _mockRetryPolicyService = new Mock<IRetryPolicyService>();
         _mockLogger = new Mock<ILogger<TodoSyncService>>();
-
+ 
         _mockExternalClient.Setup(x => x.SourceId).Returns("integration-test-source");
-
-        _syncService = new TodoSyncService(_context, _mockExternalClient.Object, _mockConflictResolver.Object, _mockLogger.Object);
+        
+        // Setup retry policy mocks to return empty pipelines for tests
+        _mockRetryPolicyService.Setup(x => x.GetHttpRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
+        _mockRetryPolicyService.Setup(x => x.GetDatabaseRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
+        _mockRetryPolicyService.Setup(x => x.GetSyncRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
+ 
+        _syncService = new TodoSyncService(_context, _mockExternalClient.Object, _mockConflictResolver.Object, _mockRetryPolicyService.Object, _mockLogger.Object);
     }
 
     [Fact]

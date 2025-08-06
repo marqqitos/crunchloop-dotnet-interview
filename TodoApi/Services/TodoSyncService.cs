@@ -10,17 +10,20 @@ public class TodoSyncService : ISyncService
     private readonly TodoContext _context;
     private readonly IExternalTodoApiClient _externalApiClient;
     private readonly IConflictResolver _conflictResolver;
+    private readonly IRetryPolicyService _retryPolicyService;
     private readonly ILogger<TodoSyncService> _logger;
 
     public TodoSyncService(
         TodoContext context,
         IExternalTodoApiClient externalApiClient,
         IConflictResolver conflictResolver,
+        IRetryPolicyService retryPolicyService,
         ILogger<TodoSyncService> logger)
     {
         _context = context;
         _externalApiClient = externalApiClient;
         _conflictResolver = conflictResolver;
+        _retryPolicyService = retryPolicyService;
         _logger = logger;
     }
 
@@ -47,16 +50,21 @@ public class TodoSyncService : ISyncService
             var syncedCount = 0;
             var failedCount = 0;
 
+            var syncRetryPolicy = _retryPolicyService.GetSyncRetryPolicy();
+            
             foreach (var todoList in unsyncedTodoLists)
             {
                 try
                 {
-                    await SyncSingleTodoListAsync(todoList);
+                    await syncRetryPolicy.ExecuteAsync(async cancellationToken =>
+                    {
+                        await SyncSingleTodoListAsync(todoList);
+                    });
                     syncedCount++;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to sync TodoList {TodoListId} '{Name}'",
+                    _logger.LogError(ex, "Failed to sync TodoList {TodoListId} '{Name}' after retries",
                         todoList.Id, todoList.Name);
                     failedCount++;
                 }
@@ -183,8 +191,12 @@ public class TodoSyncService : ISyncService
             }
         }
 
-        // Save changes to database
-        await _context.SaveChangesAsync();
+        // Save changes to database with retry logic
+        var databaseRetryPolicy = _retryPolicyService.GetDatabaseRetryPolicy();
+        await databaseRetryPolicy.ExecuteAsync(async cancellationToken =>
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        });
 
         _logger.LogInformation("Successfully synced TodoList {TodoListId} '{Name}' with external ID '{ExternalId}'",
             todoList.Id, todoList.Name, externalTodoList.Id);
