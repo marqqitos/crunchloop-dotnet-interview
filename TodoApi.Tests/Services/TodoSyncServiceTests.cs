@@ -6,6 +6,7 @@ public class TodoSyncServiceTests : IDisposable
 {
     private readonly TodoContext _context;
     private readonly Mock<IExternalTodoApiClient> _mockExternalClient;
+    private readonly Mock<IConflictResolver> _mockConflictResolver;
     private readonly Mock<ILogger<TodoSyncService>> _mockLogger;
     private readonly TodoSyncService _syncService;
 
@@ -19,12 +20,13 @@ public class TodoSyncServiceTests : IDisposable
 
         // Setup mocks
         _mockExternalClient = new Mock<IExternalTodoApiClient>();
+        _mockConflictResolver = new Mock<IConflictResolver>();
         _mockLogger = new Mock<ILogger<TodoSyncService>>();
 
         // Setup mock client defaults
         _mockExternalClient.Setup(x => x.SourceId).Returns("test-source-id");
 
-        _syncService = new TodoSyncService(_context, _mockExternalClient.Object, _mockLogger.Object);
+        _syncService = new TodoSyncService(_context, _mockExternalClient.Object, _mockConflictResolver.Object, _mockLogger.Object);
     }
 
     [Fact]

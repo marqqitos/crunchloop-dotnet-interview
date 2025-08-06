@@ -6,6 +6,12 @@ public class TodoListBuilder
 {
     private TodoList _todoList = new TodoList { Name = "Test List" };
 
+    public TodoListBuilder WithId(int id)
+    {
+        _todoList.Id = id;
+        return this;
+    }
+
     public TodoListBuilder WithName(string name)
     {
         _todoList.Name = name;
@@ -21,6 +27,12 @@ public class TodoListBuilder
     public TodoListBuilder WithLastModified(DateTime lastModified)
     {
         _todoList.LastModified = lastModified;
+        return this;
+    }
+
+    public TodoListBuilder WithLastSyncedAt(DateTime lastSyncedAt)
+    {
+        _todoList.LastSyncedAt = lastSyncedAt;
         return this;
     }
 

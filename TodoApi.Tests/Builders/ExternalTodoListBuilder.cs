@@ -10,7 +10,7 @@ public class ExternalTodoListBuilder
         return this;
     }
 
-    public ExternalTodoListBuilder WithSourceId(string sourceId) 
+    public ExternalTodoListBuilder WithSourceId(string sourceId)
     {
         _externalTodoList.SourceId = sourceId;
         return this;
@@ -35,10 +35,10 @@ public class ExternalTodoListBuilder
     }
 
     public ExternalTodoListBuilder WithItem(ExternalTodoItem item)
-    {
-        _externalTodoList.Items.Add(item);
-        return this;
-    }
+	{
+		_externalTodoList.Items.Add(item);
+		return this;
+	}
 
     public ExternalTodoList Build() => _externalTodoList;
 

@@ -15,7 +15,8 @@ builder
     .AddEndpointsApiExplorer()
     .AddControllers();
 
-// Register sync service
+// Register sync services
+builder.Services.AddScoped<IConflictResolver, ConflictResolver>();
 builder.Services.AddScoped<ISyncService, TodoSyncService>();
 
 // Configure HTTP client for external API

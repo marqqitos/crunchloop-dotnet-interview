@@ -9,15 +9,18 @@ public class TodoSyncService : ISyncService
 {
     private readonly TodoContext _context;
     private readonly IExternalTodoApiClient _externalApiClient;
+    private readonly IConflictResolver _conflictResolver;
     private readonly ILogger<TodoSyncService> _logger;
 
     public TodoSyncService(
         TodoContext context,
         IExternalTodoApiClient externalApiClient,
+        IConflictResolver conflictResolver,
         ILogger<TodoSyncService> logger)
     {
         _context = context;
         _externalApiClient = externalApiClient;
+        _conflictResolver = conflictResolver;
         _logger = logger;
     }
 
@@ -162,18 +165,21 @@ public class TodoSyncService : ISyncService
         // Create in external API
         var externalTodoList = await _externalApiClient.CreateTodoListAsync(createDto);
 
-        // Update local record with external ID
+        // Update local record with external ID and sync timestamp
+        var syncTime = DateTime.UtcNow;
         todoList.ExternalId = externalTodoList.Id;
-        todoList.LastModified = DateTime.UtcNow;
+        todoList.LastModified = syncTime;
+        todoList.LastSyncedAt = syncTime;
 
-        // Update TodoItems with their external IDs
+        // Update TodoItems with their external IDs and sync timestamps
         foreach (var externalItem in externalTodoList.Items)
         {
             var localItem = todoList.Items.FirstOrDefault(item => item.Description == externalItem.Description);
             if (localItem != null)
             {
                 localItem.ExternalId = externalItem.Id;
-                localItem.LastModified = DateTime.UtcNow;
+                localItem.LastModified = syncTime;
+                localItem.LastSyncedAt = syncTime;
             }
         }
 
@@ -211,11 +217,13 @@ public class TodoSyncService : ISyncService
         _logger.LogDebug("Creating new local TodoList from external '{ExternalId}' '{Name}'",
             externalTodoList.Id, externalTodoList.Name);
 
+        var syncTime = DateTime.UtcNow;
         var localTodoList = new TodoList
         {
             Name = externalTodoList.Name,
             ExternalId = externalTodoList.Id,
-            LastModified = externalTodoList.UpdatedAt
+            LastModified = externalTodoList.UpdatedAt,
+            LastSyncedAt = syncTime
         };
 
         // Create local TodoItems from external items
@@ -226,7 +234,8 @@ public class TodoSyncService : ISyncService
                 Description = externalItem.Description,
                 IsCompleted = externalItem.Completed,
                 ExternalId = externalItem.Id,
-                LastModified = externalItem.UpdatedAt
+                LastModified = externalItem.UpdatedAt,
+                LastSyncedAt = syncTime
             };
             localTodoList.Items.Add(localItem);
         }
@@ -237,37 +246,35 @@ public class TodoSyncService : ISyncService
         _logger.LogInformation("Created local TodoList {LocalId} from external '{ExternalId}' '{Name}' with {ItemCount} items",
             localTodoList.Id, externalTodoList.Id, externalTodoList.Name, externalTodoList.Items.Count);
 
-        return new SyncResult { IsCreated = true };
+        return SyncResult.Created();
     }
 
     private async Task<SyncResult> UpdateLocalTodoListFromExternalAsync(TodoList localTodoList, ExternalTodoList externalTodoList)
     {
-        var hasChanges = false;
+        // Use conflict resolver to determine what to do
+        var conflictInfo = _conflictResolver.ResolveTodoListConflict(localTodoList, externalTodoList);
+        
+        // Apply the resolution
+        _conflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
 
-        // Check if external TodoList has been updated since our last sync
-        if (externalTodoList.UpdatedAt > localTodoList.LastModified)
-        {
-            _logger.LogDebug("External TodoList '{ExternalId}' has been updated, applying changes locally",
-                externalTodoList.Id);
-
-            localTodoList.Name = externalTodoList.Name;
-
-            localTodoList.LastModified = externalTodoList.UpdatedAt;
-            hasChanges = true;
-        }
-
-        // Sync TodoItems
+        // Sync TodoItems with conflict resolution
         var itemChanges = await SyncTodoItemsFromExternalAsync(localTodoList, externalTodoList.Items);
-        hasChanges = hasChanges || itemChanges;
+        
+        // Always save changes (even if just updating LastSyncedAt)
+        await _context.SaveChangesAsync();
 
-        if (hasChanges)
+        if (conflictInfo.ConflictResolved)
         {
-            await _context.SaveChangesAsync();
+            _logger.LogInformation("Updated local TodoList {LocalId} from external changes - conflict resolved", localTodoList.Id);
+            return SyncResult.WithConflictResolution(conflictInfo.ResolutionReason ?? "External wins conflict resolution");
+        }
+        else if (conflictInfo.HasConflict || externalTodoList.UpdatedAt > localTodoList.LastModified || itemChanges)
+        {
             _logger.LogInformation("Updated local TodoList {LocalId} from external changes", localTodoList.Id);
-            return new SyncResult { IsUpdated = true };
+            return SyncResult.Updated();
         }
 
-        return new SyncResult { IsUnchanged = true };
+        return SyncResult.Unchanged();
     }
 
     private Task<bool> SyncTodoItemsFromExternalAsync(TodoList localTodoList, IEnumerable<ExternalTodoItem> externalItems)
@@ -282,12 +289,14 @@ public class TodoSyncService : ISyncService
             if (localItem == null)
             {
                 // Create new local TodoItem
+                var syncTime = DateTime.UtcNow;
                 localItem = new TodoItem
                 {
                     Description = externalItem.Description,
                     IsCompleted = externalItem.Completed,
                     ExternalId = externalItem.Id,
                     LastModified = externalItem.UpdatedAt,
+                    LastSyncedAt = syncTime,
                     TodoListId = localTodoList.Id
                 };
                 localTodoList.Items.Add(localItem);
@@ -296,14 +305,28 @@ public class TodoSyncService : ISyncService
                 _logger.LogDebug("Created local TodoItem from external '{ExternalId}' '{Description}'",
                     externalItem.Id, externalItem.Description);
             }
-            else if (externalItem.UpdatedAt > localItem.LastModified)
+            else
             {
-                localItem.Description = externalItem.Description;
-                localItem.IsCompleted = externalItem.Completed;
-                localItem.LastModified = externalItem.UpdatedAt;
-                hasChanges = true;
+                // Use conflict resolver to determine what to do
+                var conflictInfo = _conflictResolver.ResolveTodoItemConflict(localItem, externalItem);
+                
+                // Apply the resolution
+                _conflictResolver.ApplyResolution(localItem, externalItem, conflictInfo);
 
-                _logger.LogDebug("Updated local TodoItem {LocalId} from external changes", localItem.Id);
+                if (conflictInfo.ConflictResolved || conflictInfo.HasConflict || externalItem.UpdatedAt > localItem.LastModified)
+                {
+                    hasChanges = true;
+                    
+                    if (conflictInfo.ConflictResolved)
+                    {
+                        _logger.LogDebug("Conflict resolved for TodoItem {LocalId} - {Reason}", 
+                            localItem.Id, conflictInfo.ResolutionReason);
+                    }
+                    else
+                    {
+                        _logger.LogDebug("Updated local TodoItem {LocalId} from external changes", localItem.Id);
+                    }
+                }
             }
         }
 

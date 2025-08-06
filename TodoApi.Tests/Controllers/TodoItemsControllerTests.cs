@@ -27,17 +27,17 @@ public class TodoItemsControllerTests
         
         context.TodoItem.Add(TodoItemBuilder.Create()
             .WithDescription("Task 1")
-            .WithCompleted(false)
+            .WithIsCompleted(false)
             .WithTodoListId(1)
             .Build());
         context.TodoItem.Add(TodoItemBuilder.Create()
             .WithDescription("Task 2")
-            .WithCompleted(true)
+            .WithIsCompleted(true)
             .WithTodoListId(1)
             .Build());
         context.TodoItem.Add(TodoItemBuilder.Create()
             .WithDescription("Task 3")
-            .WithCompleted(false)
+            .WithIsCompleted(false)
             .WithTodoListId(2)
             .Build());
         

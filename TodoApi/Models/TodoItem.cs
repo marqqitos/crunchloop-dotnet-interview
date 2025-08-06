@@ -8,7 +8,8 @@ public class TodoItem
     public long TodoListId { get; set; }
     public TodoList TodoList { get; set; } = null!;
     
-    // Basic sync tracking fields
+    // Sync tracking fields
     public string? ExternalId { get; set; }           // Maps to external API string ID
     public DateTime LastModified { get; set; } = DateTime.UtcNow;  // Track when locally modified
+    public DateTime? LastSyncedAt { get; set; }       // Track when last synced with external API
 }

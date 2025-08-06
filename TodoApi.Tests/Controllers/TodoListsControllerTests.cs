@@ -22,7 +22,7 @@ public class TodoListsControllerTests
             .WithName("Task 1")
             .WithItem(TodoItemBuilder.Create()
                 .WithDescription("Item 1")
-                .WithCompleted(false)
+                .WithIsCompleted(false)
                 .Build())
             .Build());
 
@@ -30,7 +30,7 @@ public class TodoListsControllerTests
             .WithName("Task 2")
             .WithItem(TodoItemBuilder.Create()
                 .WithDescription("Item 2")
-                .WithCompleted(false)
+                .WithIsCompleted(false)
                 .Build())
             .Build());
             

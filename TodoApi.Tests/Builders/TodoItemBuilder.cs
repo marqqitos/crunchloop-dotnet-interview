@@ -6,13 +6,19 @@ public class TodoItemBuilder
 {
     private TodoItem _todoItem = new TodoItem { Description = "Description" };
 
+    public TodoItemBuilder WithId(int id)
+    {
+        _todoItem.Id = id;
+        return this;
+    }
+
     public TodoItemBuilder WithDescription(string description)
     {
         _todoItem.Description = description;
         return this;
     }
 
-    public TodoItemBuilder WithCompleted(bool isCompleted)
+    public TodoItemBuilder WithIsCompleted(bool isCompleted)
     {
         _todoItem.IsCompleted = isCompleted;
         return this;
@@ -33,6 +39,12 @@ public class TodoItemBuilder
     public TodoItemBuilder WithLastModified(DateTime lastModified)
     {
         _todoItem.LastModified = lastModified;
+        return this;
+    }
+
+    public TodoItemBuilder WithLastSyncedAt(DateTime lastSyncedAt)
+    {
+        _todoItem.LastSyncedAt = lastSyncedAt;
         return this;
     }
 
