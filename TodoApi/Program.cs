@@ -12,6 +12,10 @@ builder.Services.Configure<ExternalApiOptions>(
 builder.Services.Configure<RetryOptions>(
     builder.Configuration.GetSection(RetryOptions.SectionName));
 
+// Configure sync options
+builder.Services.Configure<SyncOptions>(
+    builder.Configuration.GetSection(SyncOptions.SectionName));
+
 builder
     .Services.AddDbContext<TodoContext>(opt =>
         opt.UseSqlServer(builder.Configuration.GetConnectionString("TodoContext"))
@@ -23,6 +27,13 @@ builder
 builder.Services.AddScoped<IRetryPolicyService, RetryPolicyService>();
 builder.Services.AddScoped<IConflictResolver, ConflictResolver>();
 builder.Services.AddScoped<ISyncService, TodoSyncService>();
+
+// Register background service
+var syncOptions = builder.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>();
+if (syncOptions?.EnableBackgroundSync == true)
+{
+    builder.Services.AddHostedService<SyncBackgroundService>();
+}
 
 // Configure HTTP client for external API
 var externalApiOptions = builder.Configuration.GetSection(ExternalApiOptions.SectionName).Get<ExternalApiOptions>();
