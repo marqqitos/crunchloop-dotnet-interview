@@ -26,6 +26,7 @@ builder
 // Register sync services
 builder.Services.AddScoped<IRetryPolicyService, RetryPolicyService>();
 builder.Services.AddScoped<IConflictResolver, ConflictResolver>();
+builder.Services.AddScoped<IChangeDetectionService, ChangeDetectionService>();
 builder.Services.AddScoped<ISyncService, TodoSyncService>();
 
 // Register background service

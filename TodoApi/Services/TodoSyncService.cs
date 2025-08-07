@@ -11,6 +11,7 @@ public class TodoSyncService : ISyncService
     private readonly IExternalTodoApiClient _externalApiClient;
     private readonly IConflictResolver _conflictResolver;
     private readonly IRetryPolicyService _retryPolicyService;
+    private readonly IChangeDetectionService _changeDetectionService;
     private readonly ILogger<TodoSyncService> _logger;
 
     public TodoSyncService(
@@ -18,12 +19,14 @@ public class TodoSyncService : ISyncService
         IExternalTodoApiClient externalApiClient,
         IConflictResolver conflictResolver,
         IRetryPolicyService retryPolicyService,
+        IChangeDetectionService changeDetectionService,
         ILogger<TodoSyncService> logger)
     {
         _context = context;
         _externalApiClient = externalApiClient;
         _conflictResolver = conflictResolver;
         _retryPolicyService = retryPolicyService;
+        _changeDetectionService = changeDetectionService;
         _logger = logger;
     }
 
@@ -33,26 +36,26 @@ public class TodoSyncService : ISyncService
 
         try
         {
-            // Find TodoLists that haven't been synced yet (no ExternalId)
-            var unsyncedTodoLists = await _context.TodoList
-                .Where(tl => tl.ExternalId == null)
+            // Find TodoLists that have pending changes or haven't been synced yet
+            var pendingTodoLists = await _context.TodoList
+                .Where(tl => tl.IsSyncPending || tl.ExternalId == null)
                 .Include(tl => tl.Items) // Include items for complete sync
                 .ToListAsync();
 
-            if (!unsyncedTodoLists.Any())
+            if (!pendingTodoLists.Any())
             {
-                _logger.LogInformation("No unsynced TodoLists found");
+                _logger.LogInformation("No TodoLists with pending changes found");
                 return;
             }
 
-            _logger.LogInformation("Found {Count} unsynced TodoLists to sync", unsyncedTodoLists.Count);
+            _logger.LogInformation("Found {Count} TodoLists with pending changes to sync", pendingTodoLists.Count);
 
             var syncedCount = 0;
             var failedCount = 0;
 
             var syncRetryPolicy = _retryPolicyService.GetSyncRetryPolicy();
             
-            foreach (var todoList in unsyncedTodoLists)
+            foreach (var todoList in pendingTodoLists)
             {
                 try
                 {
@@ -135,11 +138,25 @@ public class TodoSyncService : ISyncService
 
         try
         {
-            // Phase 1: Push local changes to external API
-            _logger.LogInformation("Phase 1: Syncing local changes to external API");
-            await SyncTodoListsToExternalAsync();
+            // Check if there are any pending changes before starting sync
+            var hasPendingChanges = await _changeDetectionService.HasPendingChangesAsync();
+            var pendingCount = await _changeDetectionService.GetPendingChangesCountAsync();
+            
+            _logger.LogInformation("Sync check: HasPendingChanges={HasPendingChanges}, PendingCount={PendingCount}", 
+                hasPendingChanges, pendingCount);
 
-            // Phase 2: Pull external changes to local database
+            // Phase 1: Push local changes to external API (only if there are pending changes)
+            if (hasPendingChanges)
+            {
+                _logger.LogInformation("Phase 1: Syncing local changes to external API");
+                await SyncTodoListsToExternalAsync();
+            }
+            else
+            {
+                _logger.LogInformation("Phase 1: Skipping local sync - no pending changes");
+            }
+
+            // Phase 2: Pull external changes to local database (always check for external changes)
             _logger.LogInformation("Phase 2: Syncing external changes to local database");
             await SyncTodoListsFromExternalAsync();
 
@@ -178,6 +195,7 @@ public class TodoSyncService : ISyncService
         todoList.ExternalId = externalTodoList.Id;
         todoList.LastModified = syncTime;
         todoList.LastSyncedAt = syncTime;
+        todoList.IsSyncPending = false; // Clear pending flag after successful sync
 
         // Update TodoItems with their external IDs and sync timestamps
         foreach (var externalItem in externalTodoList.Items)
@@ -188,6 +206,7 @@ public class TodoSyncService : ISyncService
                 localItem.ExternalId = externalItem.Id;
                 localItem.LastModified = syncTime;
                 localItem.LastSyncedAt = syncTime;
+                localItem.IsSyncPending = false; // Clear pending flag after successful sync
             }
         }
 

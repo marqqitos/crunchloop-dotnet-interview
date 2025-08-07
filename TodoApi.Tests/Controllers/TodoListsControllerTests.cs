@@ -44,7 +44,8 @@ public class TodoListsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoListsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoListsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.GetTodoLists();
 
@@ -60,7 +61,8 @@ public class TodoListsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoListsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoListsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.GetTodoList(1);
 
@@ -76,7 +78,8 @@ public class TodoListsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoListsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoListsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.PutTodoList(
                 3,
@@ -94,7 +97,8 @@ public class TodoListsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoListsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoListsController(context, mockChangeDetectionService.Object);
 
             var todoList = await context.TodoList.Where(x => x.Id == 2).FirstAsync();
             var result = await controller.PutTodoList(
@@ -115,7 +119,8 @@ public class TodoListsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoListsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoListsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.PostTodoList(new Dtos.CreateTodoList { Name = "Task 3" });
 
@@ -131,7 +136,8 @@ public class TodoListsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoListsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoListsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.DeleteTodoList(2);
 

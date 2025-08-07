@@ -10,4 +10,5 @@ public class TodoList
     public string? ExternalId { get; set; }           // Maps to external API string ID
     public DateTime LastModified { get; set; } = DateTime.UtcNow;  // Track when locally modified
     public DateTime? LastSyncedAt { get; set; }       // Track when last synced with external API
+    public bool IsSyncPending { get; set; } = false;  // Track if changes need to be synced
 }

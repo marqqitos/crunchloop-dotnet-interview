@@ -36,9 +36,21 @@ public class SyncBackgroundService : BackgroundService
                 // Create a scope for this sync operation
                 using var scope = _serviceScopeFactory.CreateScope();
                 var syncService = scope.ServiceProvider.GetRequiredService<ISyncService>();
+                var changeDetectionService = scope.ServiceProvider.GetRequiredService<IChangeDetectionService>();
 
-                // Perform full bidirectional sync
-                await syncService.PerformFullSyncAsync();
+                // Check if there are pending changes before performing sync
+                var hasPendingChanges = await changeDetectionService.HasPendingChangesAsync();
+                var pendingCount = await changeDetectionService.GetPendingChangesCountAsync();
+
+                if (hasPendingChanges)
+                {
+                    _logger.LogInformation("Found {PendingCount} pending changes, performing sync", pendingCount);
+                    await syncService.PerformFullSyncAsync();
+                }
+                else
+                {
+                    _logger.LogDebug("No pending changes found, skipping sync");
+                }
 
                 _logger.LogInformation("Periodic sync completed successfully at {Timestamp}", DateTime.UtcNow);
             }

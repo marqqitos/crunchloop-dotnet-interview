@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Dtos;
 using TodoApi.Models;
+using TodoApi.Services;
 
 namespace TodoApi.Controllers
 {
@@ -10,10 +11,12 @@ namespace TodoApi.Controllers
     public class TodoItemsController : ControllerBase
     {
         private readonly TodoContext _context;
+        private readonly IChangeDetectionService _changeDetectionService;
 
-        public TodoItemsController(TodoContext context)
+        public TodoItemsController(TodoContext context, IChangeDetectionService changeDetectionService)
         {
             _context = context;
+            _changeDetectionService = changeDetectionService;
         }
 
         // GET: api/todolists/5/items
@@ -91,6 +94,7 @@ namespace TodoApi.Controllers
             todoItem.Description = payload.Description;
             todoItem.IsCompleted = payload.Completed;
             todoItem.LastModified = DateTime.UtcNow;
+            todoItem.IsSyncPending = true; // Mark as pending for sync
             
             await _context.SaveChangesAsync();
 
@@ -121,7 +125,8 @@ namespace TodoApi.Controllers
                 Description = payload.Description,
                 IsCompleted = payload.Completed,
                 TodoListId = todoListId,
-                LastModified = DateTime.UtcNow
+                LastModified = DateTime.UtcNow,
+                IsSyncPending = true // Mark as pending for sync
             };
 
             _context.TodoItem.Add(todoItem);

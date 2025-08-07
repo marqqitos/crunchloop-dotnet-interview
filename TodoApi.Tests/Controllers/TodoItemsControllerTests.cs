@@ -51,7 +51,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.GetTodoItems(999);
 
@@ -69,7 +70,8 @@ public class TodoItemsControllerTests
             context.TodoList.Add(new TodoList { Id = 3, Name = "Empty List" });
             context.SaveChanges();
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.GetTodoItems(3);
 
@@ -87,7 +89,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.GetTodoItems(1);
 
@@ -107,7 +110,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.GetTodoItem(999, 1);
 
@@ -124,7 +128,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.GetTodoItem(1, 999);
 
@@ -141,7 +146,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.GetTodoItem(2, 1); // Item 1 is in TodoList 1, not 2
 
@@ -158,7 +164,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.GetTodoItem(1, 1);
 
@@ -179,7 +186,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
             var updatePayload = new UpdateTodoItem { Description = "Updated Task", Completed = true };
 
             var result = await controller.PutTodoItem(999, 1, updatePayload);
@@ -197,7 +205,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
             var updatePayload = new UpdateTodoItem { Description = "Updated Task", Completed = true };
 
             var result = await controller.PutTodoItem(1, 999, updatePayload);
@@ -215,7 +224,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
             var updatePayload = new UpdateTodoItem { Description = "Updated Task", Completed = true };
 
             var result = await controller.PutTodoItem(2, 1, updatePayload); // Item 1 is in TodoList 1, not 2
@@ -233,7 +243,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
             var updatePayload = new UpdateTodoItem { Description = "Updated Task 1", Completed = true };
 
             var result = await controller.PutTodoItem(1, 1, updatePayload);
@@ -261,7 +272,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
             var createPayload = new CreateTodoItem { Description = "New Task", Completed = false };
 
             var result = await controller.PostTodoItem(999, createPayload);
@@ -279,7 +291,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
             var createPayload = new CreateTodoItem { Description = "New Task", Completed = false };
 
             var result = await controller.PostTodoItem(1, createPayload);
@@ -308,7 +321,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
             var createPayload = new CreateTodoItem { Description = "Completed Task", Completed = true };
 
             var result = await controller.PostTodoItem(2, createPayload);
@@ -330,7 +344,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.DeleteTodoItem(999, 1);
 
@@ -347,7 +362,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.DeleteTodoItem(1, 999);
 
@@ -364,7 +380,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.DeleteTodoItem(2, 1); // Item 1 is in TodoList 1, not 2
 
@@ -381,7 +398,8 @@ public class TodoItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var controller = new TodoItemsController(context);
+            var mockChangeDetectionService = new Mock<IChangeDetectionService>();
+            var controller = new TodoItemsController(context, mockChangeDetectionService.Object);
 
             var result = await controller.DeleteTodoItem(1, 1);
 
