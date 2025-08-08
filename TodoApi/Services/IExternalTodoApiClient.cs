@@ -22,20 +22,20 @@ public interface IExternalTodoApiClient
     /// <summary>
     /// Update an existing TodoList in external API
     /// </summary>
-    Task<ExternalTodoList> UpdateTodoListAsync(string externalId, UpdateExternalTodoList updateDto);
-    
-    /// <summary>
-    /// Delete a TodoList from external API
-    /// </summary>
-    Task DeleteTodoListAsync(string externalId);
-    
+    Task<ExternalTodoList> UpdateTodoListAsync(string id, UpdateExternalTodoList updateDto);
+
     /// <summary>
     /// Update a TodoItem in external API
     /// </summary>
-    Task<ExternalTodoItem> UpdateTodoItemAsync(string todoListId, string todoItemId, UpdateExternalTodoItem updateDto);
+    Task<ExternalTodoItem> UpdateTodoItemAsync(string todoListId, string itemId, UpdateExternalTodoItem updateDto);
     
     /// <summary>
-    /// Delete a TodoItem from external API
+    /// Delete a TodoList in external API
     /// </summary>
-    Task DeleteTodoItemAsync(string todoListId, string todoItemId);
+    Task DeleteTodoListAsync(string id);
+    
+    /// <summary>
+    /// Delete a TodoItem in external API
+    /// </summary>
+    Task DeleteTodoItemAsync(string todoListId, string itemId);
 }

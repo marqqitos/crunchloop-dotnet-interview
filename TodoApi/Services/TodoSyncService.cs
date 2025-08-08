@@ -12,6 +12,7 @@ public class TodoSyncService : ISyncService
     private readonly IConflictResolver _conflictResolver;
     private readonly IRetryPolicyService _retryPolicyService;
     private readonly IChangeDetectionService _changeDetectionService;
+    private readonly ISyncStateService _syncStateService;
     private readonly ILogger<TodoSyncService> _logger;
 
     public TodoSyncService(
@@ -20,6 +21,7 @@ public class TodoSyncService : ISyncService
         IConflictResolver conflictResolver,
         IRetryPolicyService retryPolicyService,
         IChangeDetectionService changeDetectionService,
+        ISyncStateService syncStateService,
         ILogger<TodoSyncService> logger)
     {
         _context = context;
@@ -27,6 +29,7 @@ public class TodoSyncService : ISyncService
         _conflictResolver = conflictResolver;
         _retryPolicyService = retryPolicyService;
         _changeDetectionService = changeDetectionService;
+        _syncStateService = syncStateService;
         _logger = logger;
     }
 
@@ -44,7 +47,7 @@ public class TodoSyncService : ISyncService
 
             if (!pendingTodoLists.Any())
             {
-                _logger.LogInformation("No TodoLists with pending changes found");
+                _logger.LogInformation("No unsynced TodoLists found");
                 return;
             }
 
@@ -89,16 +92,31 @@ public class TodoSyncService : ISyncService
 
         try
         {
-            // Get all TodoLists from external API
-            var externalTodoLists = await _externalApiClient.GetTodoListsAsync();
+            // Determine if we can use delta sync
+            var isDeltaSyncAvailable = await _syncStateService.IsDeltaSyncAvailableAsync();
+            DateTime? sinceTimestamp = null;
+            List<ExternalTodoList> externalTodoLists;
 
-            if (!externalTodoLists.Any())
+            if (isDeltaSyncAvailable)
             {
-                _logger.LogInformation("No TodoLists found in external API");
+                sinceTimestamp = await _syncStateService.GetLastSyncTimestampAsync();
+                _logger.LogInformation("Using delta sync (client-side) - fetching all TodoLists and filtering by {SinceTimestamp}", sinceTimestamp);
+            }
+
+            // Always fetch all, then filter locally when delta is available
+            var allExternalLists = await _externalApiClient.GetTodoListsAsync();
+            externalTodoLists = isDeltaSyncAvailable && sinceTimestamp.HasValue
+                ? allExternalLists.Where(tl => tl.UpdatedAt >= sinceTimestamp.Value).ToList()
+                : allExternalLists;
+
+            if (externalTodoLists == null || externalTodoLists.Count == 0)
+            {
+                _logger.LogInformation("No changes detected from external API");
                 return;
             }
 
-            _logger.LogInformation("Found {Count} TodoLists in external API", externalTodoLists.Count);
+            _logger.LogInformation("Found {Count} TodoLists in external API (delta sync: {IsDeltaSync})", 
+                externalTodoLists.Count, isDeltaSyncAvailable);
 
             var createdCount = 0;
             var updatedCount = 0;
@@ -122,8 +140,17 @@ public class TodoSyncService : ISyncService
                 }
             }
 
-            _logger.LogInformation("Inbound sync completed. Created: {CreatedCount}, Updated: {UpdatedCount}, Failed: {FailedCount}",
-                createdCount, updatedCount, failedCount);
+            // Update sync timestamp after successful sync
+            if (createdCount > 0 || updatedCount > 0)
+            {
+                var syncTimestamp = DateTime.UtcNow;
+                await _syncStateService.UpdateLastSyncTimestampAsync(syncTimestamp);
+                _logger.LogInformation("Updated sync timestamp to {SyncTimestamp} after processing {TotalCount} entities", 
+                    syncTimestamp, createdCount + updatedCount);
+            }
+
+            _logger.LogInformation("Inbound sync completed. Created: {CreatedCount}, Updated: {UpdatedCount}, Failed: {FailedCount} (delta sync: {IsDeltaSync})",
+                createdCount, updatedCount, failedCount, isDeltaSyncAvailable);
         }
         catch (Exception ex)
         {
@@ -142,18 +169,21 @@ public class TodoSyncService : ISyncService
             var hasPendingChanges = await _changeDetectionService.HasPendingChangesAsync();
             var pendingCount = await _changeDetectionService.GetPendingChangesCountAsync();
             
-            _logger.LogInformation("Sync check: HasPendingChanges={HasPendingChanges}, PendingCount={PendingCount}", 
-                hasPendingChanges, pendingCount);
+            // Also check for any unsynced TodoLists (no ExternalId)
+            var hasUnsyncedTodoLists = await _context.TodoList.AnyAsync(tl => tl.ExternalId == null);
+            
+            _logger.LogInformation("Sync check: HasPendingChanges={HasPendingChanges}, PendingCount={PendingCount}, HasUnsynced={HasUnsynced}", 
+                hasPendingChanges, pendingCount, hasUnsyncedTodoLists);
 
-            // Phase 1: Push local changes to external API (only if there are pending changes)
-            if (hasPendingChanges)
+            // Phase 1: Push local changes to external API when there are pending changes OR unsynced lists
+            if (hasPendingChanges || hasUnsyncedTodoLists)
             {
-                _logger.LogInformation("Phase 1: Syncing local changes to external API");
+                _logger.LogInformation("Phase 1: Syncing local changes/unsynced lists to external API");
                 await SyncTodoListsToExternalAsync();
             }
             else
             {
-                _logger.LogInformation("Phase 1: Skipping local sync - no pending changes");
+                _logger.LogInformation("Phase 1: Skipping local sync - no pending changes or unsynced lists");
             }
 
             // Phase 2: Pull external changes to local database (always check for external changes)

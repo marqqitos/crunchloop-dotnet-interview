@@ -16,6 +16,7 @@ public class RetryIntegrationTests : IAsyncDisposable
     private readonly Mock<ILogger<TodoSyncService>> _mockSyncLogger;
     private readonly Mock<IChangeDetectionService> _mockChangeDetectionService;
     private readonly IRetryPolicyService _retryPolicyService;
+    private readonly Mock<ISyncStateService> _mockSyncStateService;
     private readonly TodoSyncService _syncService;
 
     public RetryIntegrationTests()
@@ -29,6 +30,7 @@ public class RetryIntegrationTests : IAsyncDisposable
         _mockConflictResolver = new Mock<IConflictResolver>();
         _mockSyncLogger = new Mock<ILogger<TodoSyncService>>();
         _mockChangeDetectionService = new Mock<IChangeDetectionService>();
+        _mockSyncStateService = new Mock<ISyncStateService>();
         // Setup retry policy service
         var retryOptions = new RetryOptions
         {
@@ -51,7 +53,9 @@ public class RetryIntegrationTests : IAsyncDisposable
             _mockConflictResolver.Object,
             _retryPolicyService,
             _mockChangeDetectionService.Object,
-            _mockSyncLogger.Object);
+            _mockSyncStateService.Object,
+            _mockSyncLogger.Object
+        );
     }
 
     [Fact]
@@ -259,6 +263,7 @@ public class RetryIntegrationTests : IAsyncDisposable
             _mockConflictResolver.Object,
             _retryPolicyService,
             mockChangeDetectionService.Object,
+            _mockSyncStateService.Object,
             _mockSyncLogger.Object);
     }
 

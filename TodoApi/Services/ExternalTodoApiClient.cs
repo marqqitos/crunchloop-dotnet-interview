@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using Polly;
 using TodoApi.Configuration;
 using TodoApi.Dtos.External;
 

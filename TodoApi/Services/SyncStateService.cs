@@ -1,0 +1,99 @@
+using Microsoft.EntityFrameworkCore;
+using TodoApi.Models;
+
+namespace TodoApi.Services;
+
+/// <summary>
+/// Service for managing sync state and tracking last sync timestamps
+/// </summary>
+public class SyncStateService : ISyncStateService
+{
+    private readonly TodoContext _context;
+    private readonly ILogger<SyncStateService> _logger;
+
+    public SyncStateService(TodoContext context, ILogger<SyncStateService> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    public async Task<DateTime?> GetLastSyncTimestampAsync()
+    {
+        // Get the most recent LastSyncedAt timestamp from all TodoLists and TodoItems
+        var todoListLastSync = await _context.TodoList
+            .Where(tl => tl.LastSyncedAt.HasValue)
+            .MaxAsync(tl => tl.LastSyncedAt);
+
+        var todoItemLastSync = await _context.TodoItem
+            .Where(ti => ti.LastSyncedAt.HasValue)
+            .MaxAsync(ti => ti.LastSyncedAt);
+
+        // Return the most recent timestamp between TodoLists and TodoItems
+        var lastSync = todoListLastSync.HasValue && todoItemLastSync.HasValue
+            ? todoListLastSync.Value > todoItemLastSync.Value ? todoListLastSync.Value : todoItemLastSync.Value
+            : todoListLastSync ?? todoItemLastSync;
+
+        _logger.LogDebug("Last sync timestamp: {LastSync}", lastSync);
+        return lastSync;
+    }
+
+    public async Task UpdateLastSyncTimestampAsync(DateTime syncTimestamp)
+    {
+        _logger.LogInformation("Updating last sync timestamp to {SyncTimestamp}", syncTimestamp);
+        
+        // Update all TodoLists that have been synced
+        var syncedTodoLists = await _context.TodoList
+            .Where(t => t.ExternalId != null)
+            .ToListAsync();
+            
+        foreach (var todoList in syncedTodoLists)
+        {
+            todoList.LastSyncedAt = syncTimestamp;
+        }
+        
+        // Update all TodoItems that have been synced
+        var syncedTodoItems = await _context.TodoItem
+            .Where(t => t.ExternalId != null)
+            .ToListAsync();
+            
+        foreach (var todoItem in syncedTodoItems)
+        {
+            todoItem.LastSyncedAt = syncTimestamp;
+        }
+        
+        await _context.SaveChangesAsync();
+        
+        _logger.LogInformation("Updated last sync timestamp for {TodoListCount} TodoLists and {TodoItemCount} TodoItems", 
+            syncedTodoLists.Count, syncedTodoItems.Count);
+    }
+
+    public async Task<bool> IsDeltaSyncAvailableAsync()
+    {
+        var lastSync = await GetLastSyncTimestampAsync();
+        var isAvailable = lastSync.HasValue;
+        
+        _logger.LogDebug("Delta sync available: {IsAvailable} (last sync: {LastSync})", isAvailable, lastSync);
+        return isAvailable;
+    }
+
+    public async Task<DateTime?> GetEarliestLastModifiedAsync()
+    {
+        // Get the earliest LastModified timestamp from all TodoLists and TodoItems
+        // This can be used as a fallback for delta sync when no previous sync exists
+        var todoListEarliest = await _context.TodoList
+            .Where(tl => tl.LastModified != default)
+            .MinAsync(tl => tl.LastModified);
+
+        var todoItemEarliest = await _context.TodoItem
+            .Where(ti => ti.LastModified != default)
+            .MinAsync(ti => ti.LastModified);
+
+        // Return the earliest timestamp between TodoLists and TodoItems
+        var earliest = todoListEarliest != default && todoItemEarliest != default
+            ? todoListEarliest < todoItemEarliest ? todoListEarliest : todoItemEarliest
+            : todoListEarliest != default ? todoListEarliest : todoItemEarliest;
+
+        _logger.LogDebug("Earliest last modified timestamp: {Earliest}", earliest);
+        return earliest != default ? earliest : null;
+    }
+} 

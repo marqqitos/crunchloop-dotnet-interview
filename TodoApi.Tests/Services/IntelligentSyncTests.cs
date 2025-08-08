@@ -13,6 +13,7 @@ public class IntelligentSyncTests
     private readonly Mock<IExternalTodoApiClient> _mockExternalClient;
     private readonly Mock<IConflictResolver> _mockConflictResolver;
     private readonly Mock<IRetryPolicyService> _mockRetryPolicyService;
+    private readonly Mock<ISyncStateService> _mockSyncStateService;
 
     public IntelligentSyncTests()
     {
@@ -24,6 +25,7 @@ public class IntelligentSyncTests
         _mockExternalClient = new Mock<IExternalTodoApiClient>();
         _mockConflictResolver = new Mock<IConflictResolver>();
         _mockRetryPolicyService = new Mock<IRetryPolicyService>();
+        _mockSyncStateService = new Mock<ISyncStateService>();
     }
 
     [Fact]
@@ -38,6 +40,7 @@ public class IntelligentSyncTests
             _mockConflictResolver.Object, 
             _mockRetryPolicyService.Object, 
             changeDetectionService, 
+            _mockSyncStateService.Object,
             _mockSyncLogger.Object);
 
         // Setup mock to return empty list
@@ -67,6 +70,7 @@ public class IntelligentSyncTests
             _mockConflictResolver.Object, 
             _mockRetryPolicyService.Object, 
             changeDetectionService, 
+            _mockSyncStateService.Object,
             _mockSyncLogger.Object);
 
         var externalResponse = new ExternalTodoList { Id = "ext-123", Name = "Test List", Items = new List<ExternalTodoItem>() };

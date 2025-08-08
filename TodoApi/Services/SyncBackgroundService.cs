@@ -36,20 +36,29 @@ public class SyncBackgroundService : BackgroundService
                 // Create a scope for this sync operation
                 using var scope = _serviceScopeFactory.CreateScope();
                 var syncService = scope.ServiceProvider.GetRequiredService<ISyncService>();
-                var changeDetectionService = scope.ServiceProvider.GetRequiredService<IChangeDetectionService>();
+                var changeDetectionService = scope.ServiceProvider.GetService<IChangeDetectionService>();
 
-                // Check if there are pending changes before performing sync
-                var hasPendingChanges = await changeDetectionService.HasPendingChangesAsync();
-                var pendingCount = await changeDetectionService.GetPendingChangesCountAsync();
-
-                if (hasPendingChanges)
+                if (changeDetectionService is not null)
                 {
-                    _logger.LogInformation("Found {PendingCount} pending changes, performing sync", pendingCount);
-                    await syncService.PerformFullSyncAsync();
+                    // Check if there are pending changes before performing sync
+                    var hasPendingChanges = await changeDetectionService.HasPendingChangesAsync();
+                    var pendingCount = await changeDetectionService.GetPendingChangesCountAsync();
+
+                    if (hasPendingChanges)
+                    {
+                        _logger.LogInformation("Found {PendingCount} pending changes, performing sync", pendingCount);
+                        await syncService.PerformFullSyncAsync();
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No pending changes found, skipping sync");
+                    }
                 }
                 else
                 {
-                    _logger.LogDebug("No pending changes found, skipping sync");
+                    // If change detection is not available, default to performing sync
+                    _logger.LogDebug("Change detection service not available; performing sync by default");
+                    await syncService.PerformFullSyncAsync();
                 }
 
                 _logger.LogInformation("Periodic sync completed successfully at {Timestamp}", DateTime.UtcNow);

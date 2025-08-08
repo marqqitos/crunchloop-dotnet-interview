@@ -21,16 +21,25 @@ public class TodoListsController : ControllerBase
 
     // GET /todolists
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<TodoList>>> GetTodoLists()
+    public async Task<ActionResult<IEnumerable<TodoList>>> GetTodoLists([FromQuery] DateTime? modified_since = null)
     {
-        _logger.LogInformation("Fetching all TodoLists with their items");
+        _logger.LogInformation("Fetching TodoLists with modified_since filter: {ModifiedSince}", modified_since);
         
-        var todoLists = await _context.TodoLists
-            .Include(tl => tl.Items)
+        var query = _context.TodoLists.Include(tl => tl.Items).AsQueryable();
+        
+        // Apply delta sync filter if provided
+        if (modified_since.HasValue)
+        {
+            query = query.Where(tl => tl.UpdatedAt >= modified_since.Value);
+            _logger.LogInformation("Filtering TodoLists modified since {ModifiedSince}", modified_since.Value);
+        }
+        
+        var todoLists = await query
             .OrderBy(tl => tl.CreatedAt)
             .ToListAsync();
 
-        _logger.LogInformation("Retrieved {Count} TodoLists", todoLists.Count);
+        _logger.LogInformation("Retrieved {Count} TodoLists (filtered: {IsFiltered})", 
+            todoLists.Count, modified_since.HasValue);
         return Ok(todoLists);
     }
 

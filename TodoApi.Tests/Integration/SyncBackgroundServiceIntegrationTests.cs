@@ -47,6 +47,8 @@ public class SyncBackgroundServiceIntegrationTests : IDisposable
         services.AddScoped<IExternalTodoApiClient>(_ => _mockExternalApiClient.Object);
         services.AddScoped<IRetryPolicyService, RetryPolicyService>();
         services.AddScoped<IConflictResolver, ConflictResolver>();
+        services.AddScoped<IChangeDetectionService, ChangeDetectionService>();
+        services.AddScoped<ISyncStateService, SyncStateService>();
         services.AddScoped<ISyncService, TodoSyncService>();
         services.AddLogging(builder => builder.AddConsole());
 
