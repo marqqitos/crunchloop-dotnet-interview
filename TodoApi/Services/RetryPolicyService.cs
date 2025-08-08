@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
+using Polly.CircuitBreaker;
 using System.Net;
 using TodoApi.Configuration;
 
@@ -38,7 +39,7 @@ public class RetryPolicyService : IRetryPolicyService
             return ResiliencePipeline.Empty;
         }
 
-        return new ResiliencePipelineBuilder()
+        var builder = new ResiliencePipelineBuilder()
             .AddRetry(new RetryStrategyOptions
             {
                 MaxRetryAttempts = _retryOptions.MaxRetryAttempts,
@@ -72,7 +73,39 @@ public class RetryPolicyService : IRetryPolicyService
 
                     return ValueTask.CompletedTask;
                 }
-            })
+            });
+
+        if (_retryOptions.EnableCircuitBreaker)
+        {
+            builder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
+            {
+                FailureRatio = _retryOptions.CircuitBreakerFailureRatio,
+                MinimumThroughput = _retryOptions.CircuitBreakerMinimumThroughput,
+                SamplingDuration = TimeSpan.FromSeconds(_retryOptions.CircuitBreakerSamplingDurationSeconds),
+                BreakDuration = TimeSpan.FromSeconds(_retryOptions.CircuitBreakerBreakDurationSeconds),
+                ShouldHandle = new PredicateBuilder()
+                    .Handle<HttpRequestException>()
+                    .Handle<TaskCanceledException>()
+                    .HandleResult((HttpResponseMessage response) => !response.IsSuccessStatusCode),
+                OnOpened = args =>
+                {
+                    _logger.LogWarning("HTTP circuit breaker opened for {BreakDuration}s due to high failure rate.", args.BreakDuration.TotalSeconds);
+                    return default;
+                },
+                OnClosed = _ =>
+                {
+                    _logger.LogInformation("HTTP circuit breaker closed. Traffic resumes.");
+                    return default;
+                },
+                OnHalfOpened = _ =>
+                {
+                    _logger.LogInformation("HTTP circuit breaker half-open. Trial calls allowed.");
+                    return default;
+                }
+            });
+        }
+
+        return builder
             .AddTimeout(TimeSpan.FromSeconds(_retryOptions.RequestTimeoutSeconds))
             .Build();
     }
