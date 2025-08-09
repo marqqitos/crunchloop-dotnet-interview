@@ -9,7 +9,8 @@ public class TodoListSyncService : ISyncService
 {
     private readonly TodoContext _context;
     private readonly IExternalTodoApiClient _externalApiClient;
-    private readonly IConflictResolver _conflictResolver;
+    private readonly IConflictResolver<TodoList, ExternalTodoList> _todoListConflictResolver;
+    private readonly IConflictResolver<TodoItem, ExternalTodoItem> _todoItemConflictResolver;
     private readonly IRetryPolicyService _retryPolicyService;
     private readonly ITodoListService _todoListService;
 	private readonly ITodoItemService _todoItemService;
@@ -19,7 +20,8 @@ public class TodoListSyncService : ISyncService
     public TodoListSyncService(
         TodoContext context,
         IExternalTodoApiClient externalApiClient,
-        IConflictResolver conflictResolver,
+        IConflictResolver<TodoList, ExternalTodoList> todoListConflictResolver,
+        IConflictResolver<TodoItem, ExternalTodoItem> todoItemConflictResolver,
         IRetryPolicyService retryPolicyService,
         ITodoListService todoListService,
 		ITodoItemService todoItemService,
@@ -28,7 +30,8 @@ public class TodoListSyncService : ISyncService
     {
         _context = context;
         _externalApiClient = externalApiClient;
-        _conflictResolver = conflictResolver;
+        _todoListConflictResolver = todoListConflictResolver;
+        _todoItemConflictResolver = todoItemConflictResolver;
         _retryPolicyService = retryPolicyService;
         _todoListService = todoListService;
 		_todoItemService = todoItemService;
@@ -318,10 +321,10 @@ public class TodoListSyncService : ISyncService
     private async Task<SyncResult> UpdateLocalTodoListFromExternalAsync(TodoList localTodoList, ExternalTodoList externalTodoList)
     {
         // Use conflict resolver to determine what to do
-        var conflictInfo = _conflictResolver.ResolveTodoListConflict(localTodoList, externalTodoList);
+        var conflictInfo = _todoListConflictResolver.ResolveConflict(localTodoList, externalTodoList);
 
         // Apply the resolution
-        _conflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
+        _todoListConflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
 
         // Sync TodoItems with conflict resolution
         var itemChanges = await SyncTodoItemsFromExternalAsync(localTodoList, externalTodoList.Items);
@@ -374,10 +377,10 @@ public class TodoListSyncService : ISyncService
             else
             {
                 // Use conflict resolver to determine what to do
-                var conflictInfo = _conflictResolver.ResolveTodoItemConflict(localItem, externalItem);
+                var conflictInfo = _todoItemConflictResolver.ResolveConflict(localItem, externalItem);
 
                 // Apply the resolution
-                _conflictResolver.ApplyResolution(localItem, externalItem, conflictInfo);
+                _todoItemConflictResolver.ApplyResolution(localItem, externalItem, conflictInfo);
 
                 if (conflictInfo.ConflictResolved || conflictInfo.HasConflict || externalItem.UpdatedAt > localItem.LastModified)
                 {

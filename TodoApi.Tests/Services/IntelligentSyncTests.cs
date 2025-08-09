@@ -10,7 +10,8 @@ public class IntelligentSyncTests
     private readonly TodoContext _dbContext;
     private readonly Mock<ILogger<TodoListSyncService>> _mockSyncLogger;
     private readonly Mock<IExternalTodoApiClient> _mockExternalClient;
-    private readonly Mock<IConflictResolver> _mockConflictResolver;
+    private readonly Mock<IConflictResolver<TodoList, ExternalTodoList>> _mockTodoListConflictResolver;
+    private readonly Mock<IConflictResolver<TodoItem, ExternalTodoItem>> _mockTodoItemConflictResolver;
     private readonly Mock<IRetryPolicyService> _mockRetryPolicyService;
     private readonly Mock<ISyncStateService> _mockSyncStateService;
 	private readonly Mock<ITodoListService> _mockTodoListService;
@@ -26,7 +27,8 @@ public class IntelligentSyncTests
         _dbContext = new TodoContext(options);
         _mockSyncLogger = new Mock<ILogger<TodoListSyncService>>();
         _mockExternalClient = new Mock<IExternalTodoApiClient>();
-        _mockConflictResolver = new Mock<IConflictResolver>();
+        _mockTodoListConflictResolver = new Mock<IConflictResolver<TodoList, ExternalTodoList>>();
+        _mockTodoItemConflictResolver = new Mock<IConflictResolver<TodoItem, ExternalTodoItem>>();
         _mockRetryPolicyService = new Mock<IRetryPolicyService>();
         _mockSyncStateService = new Mock<ISyncStateService>();
 		_mockTodoListService = new Mock<ITodoListService>();
@@ -35,7 +37,8 @@ public class IntelligentSyncTests
 		_sut = new TodoListSyncService(
             _dbContext,
 			_mockExternalClient.Object,
-			_mockConflictResolver.Object,
+			            _mockTodoListConflictResolver.Object,
+            _mockTodoItemConflictResolver.Object,
 			_mockRetryPolicyService.Object,
 			_mockTodoListService.Object,
 			_mockTodoItemService.Object,

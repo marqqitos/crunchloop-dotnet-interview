@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Configuration;
 using TodoApi.Services;
+using TodoApi.Services.ConflictResolver;
+using TodoApi.Dtos.External;
+using TodoApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,12 +28,11 @@ builder
 
 // Register sync services
 builder.Services.AddScoped<IRetryPolicyService, RetryPolicyService>();
-builder.Services.AddScoped<IConflictResolver, ConflictResolver>();
+builder.Services.AddScoped<IConflictResolver<TodoList, ExternalTodoList>, TodoListConflictResolver>();
+builder.Services.AddScoped<IConflictResolver<TodoItem, ExternalTodoItem>, TodoItemConflictResolver>();
 builder.Services.AddScoped<ITodoListService, TodoListService>();
 builder.Services.AddScoped<ITodoItemService, TodoItemService>();
 builder.Services.AddScoped<ISyncStateService, TodoListSyncStateService>();
-builder.Services.AddScoped<ITodoItemService, TodoItemService>();
-builder.Services.AddScoped<ITodoListService, TodoListService>();
 builder.Services.AddScoped<ISyncService, TodoListSyncService>();
 
 // Register background service

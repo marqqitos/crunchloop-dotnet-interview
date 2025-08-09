@@ -11,7 +11,8 @@ public class SyncIntegrationTests : IDisposable
 {
 	private readonly TodoContext _context;
 	private readonly Mock<IExternalTodoApiClient> _mockExternalClient;
-	private readonly Mock<IConflictResolver> _mockConflictResolver;
+	    private readonly Mock<IConflictResolver<TodoList, ExternalTodoList>> _mockTodoListConflictResolver;
+    private readonly Mock<IConflictResolver<TodoItem, ExternalTodoItem>> _mockTodoItemConflictResolver;
 	private readonly Mock<IRetryPolicyService> _mockRetryPolicyService;
 	private readonly Mock<ILogger<TodoListSyncService>> _mockLogger;
 	private readonly Mock<ISyncStateService> _mockSyncStateService;
@@ -27,7 +28,8 @@ public class SyncIntegrationTests : IDisposable
 		_context = new TodoContext(options);
 
 		_mockExternalClient = new Mock<IExternalTodoApiClient>();
-		_mockConflictResolver = new Mock<IConflictResolver>();
+		        _mockTodoListConflictResolver = new Mock<IConflictResolver<TodoList, ExternalTodoList>>();
+        _mockTodoItemConflictResolver = new Mock<IConflictResolver<TodoItem, ExternalTodoItem>>();
 		_mockRetryPolicyService = new Mock<IRetryPolicyService>();
 		_mockLogger = new Mock<ILogger<TodoListSyncService>>();
 		_mockTodoListService = new Mock<ITodoListService>();
@@ -43,7 +45,8 @@ public class SyncIntegrationTests : IDisposable
 		_syncService = new TodoListSyncService(
 			_context,
 			_mockExternalClient.Object,
-			_mockConflictResolver.Object,
+			_mockTodoListConflictResolver.Object,
+			_mockTodoItemConflictResolver.Object,
 			_mockRetryPolicyService.Object,
 			_mockTodoListService.Object,
 			_mockTodoItemService.Object,
@@ -297,23 +300,23 @@ public class SyncIntegrationTests : IDisposable
 		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
-		_mockConflictResolver.Setup(x => x.ResolveTodoListConflict(
-			It.IsAny<TodoList>(),
-			It.IsAny<ExternalTodoList>(),
-			It.IsAny<ConflictResolutionStrategy>()))
-			.Returns(ConflictInfoBuilder.Create()
-				.WithResolution(ConflictResolutionStrategy.ExternalWins)
-				.Build());
+			_mockTodoListConflictResolver.Setup(x => x.ResolveConflict(
+		It.IsAny<TodoList>(),
+		It.IsAny<ExternalTodoList>(),
+		It.IsAny<ConflictResolutionStrategy>()))
+		.Returns(ConflictInfoBuilder.Create()
+			.WithResolution(ConflictResolutionStrategy.ExternalWins)
+			.Build());
 
-		_mockConflictResolver.Setup(x => x.ApplyResolution(
-			It.IsAny<TodoList>(),
-			It.IsAny<ExternalTodoList>(),
-			It.IsAny<ConflictInfo>()))
-			.Callback<TodoList, ExternalTodoList, ConflictInfo>((todoList, externalTodoList, conflictInfo) =>
-			{
-				todoList.Name = externalTodoList.Name;
-				todoList.LastModified = externalTodoList.UpdatedAt;
-			});
+	_mockTodoListConflictResolver.Setup(x => x.ApplyResolution(
+		It.IsAny<TodoList>(),
+		It.IsAny<ExternalTodoList>(),
+		It.IsAny<ConflictInfo>()))
+		.Callback<TodoList, ExternalTodoList, ConflictInfo>((todoList, externalTodoList, conflictInfo) =>
+		{
+			todoList.Name = externalTodoList.Name;
+			todoList.LastModified = externalTodoList.UpdatedAt;
+		});
 
 		// Act
 		await _syncService.SyncTodoListsFromExternalAsync();
@@ -432,38 +435,38 @@ public class SyncIntegrationTests : IDisposable
 		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
-		// Setup conflict resolver mocks to allow proper syncing
-		_mockConflictResolver.Setup(x => x.ResolveTodoListConflict(
-				It.IsAny<TodoList>(),
-				It.IsAny<ExternalTodoList>(),
-				It.IsAny<ConflictResolutionStrategy>()))
-			.Returns(new ConflictInfo
-			{
-				EntityType = "TodoList",
-				Resolution = ConflictResolutionStrategy.ExternalWins,
-				ResolutionReason = string.Empty
-			});
+			// Setup conflict resolver mocks to allow proper syncing
+	_mockTodoListConflictResolver.Setup(x => x.ResolveConflict(
+			It.IsAny<TodoList>(),
+			It.IsAny<ExternalTodoList>(),
+			It.IsAny<ConflictResolutionStrategy>()))
+		.Returns(new ConflictInfo
+		{
+			EntityType = "TodoList",
+			Resolution = ConflictResolutionStrategy.ExternalWins,
+			ResolutionReason = string.Empty
+		});
 
-		_mockConflictResolver.Setup(x => x.ResolveTodoItemConflict(
-				It.IsAny<TodoItem>(),
-				It.IsAny<ExternalTodoItem>(),
-				It.IsAny<ConflictResolutionStrategy>()))
-			.Returns(new ConflictInfo
-			{
-				EntityType = "TodoItem",
-				Resolution = ConflictResolutionStrategy.ExternalWins,
-				ResolutionReason = string.Empty
-			});
+	_mockTodoItemConflictResolver.Setup(x => x.ResolveConflict(
+			It.IsAny<TodoItem>(),
+			It.IsAny<ExternalTodoItem>(),
+			It.IsAny<ConflictResolutionStrategy>()))
+		.Returns(new ConflictInfo
+		{
+			EntityType = "TodoItem",
+			Resolution = ConflictResolutionStrategy.ExternalWins,
+			ResolutionReason = string.Empty
+		});
 
-		_mockConflictResolver.Setup(x => x.ApplyResolution(
-				It.IsAny<TodoList>(),
-				It.IsAny<ExternalTodoList>(),
-				It.IsAny<ConflictInfo>()));
+	_mockTodoListConflictResolver.Setup(x => x.ApplyResolution(
+			It.IsAny<TodoList>(),
+			It.IsAny<ExternalTodoList>(),
+			It.IsAny<ConflictInfo>()));
 
-		_mockConflictResolver.Setup(x => x.ApplyResolution(
-				It.IsAny<TodoItem>(),
-				It.IsAny<ExternalTodoItem>(),
-				It.IsAny<ConflictInfo>()));
+	_mockTodoItemConflictResolver.Setup(x => x.ApplyResolution(
+			It.IsAny<TodoItem>(),
+			It.IsAny<ExternalTodoItem>(),
+			It.IsAny<ConflictInfo>()));
 
 		// Act
 		await _syncService.SyncTodoListsFromExternalAsync();

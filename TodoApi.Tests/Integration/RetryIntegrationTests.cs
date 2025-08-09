@@ -12,7 +12,8 @@ public class RetryIntegrationTests : IAsyncDisposable
 {
     private readonly TodoContext _context;
     private readonly Mock<IExternalTodoApiClient> _mockExternalClient;
-    private readonly Mock<IConflictResolver> _mockConflictResolver;
+    private readonly Mock<IConflictResolver<TodoList, ExternalTodoList>> _mockTodoListConflictResolver;
+    private readonly Mock<IConflictResolver<TodoItem, ExternalTodoItem>> _mockTodoItemConflictResolver;
     private readonly Mock<ILogger<TodoListSyncService>> _mockSyncLogger;
     private readonly Mock<ITodoListService> _mockTodoListService;
     private readonly Mock<ITodoItemService> _mockTodoItemService;
@@ -28,7 +29,8 @@ public class RetryIntegrationTests : IAsyncDisposable
 
         _context = new TodoContext(options);
         _mockExternalClient = new Mock<IExternalTodoApiClient>();
-        _mockConflictResolver = new Mock<IConflictResolver>();
+        _mockTodoListConflictResolver = new Mock<IConflictResolver<TodoList, ExternalTodoList>>();
+        _mockTodoItemConflictResolver = new Mock<IConflictResolver<TodoItem, ExternalTodoItem>>();
         _mockSyncLogger = new Mock<ILogger<TodoListSyncService>>();
         _mockTodoListService = new Mock<ITodoListService>();
         _mockTodoItemService = new Mock<ITodoItemService>();
@@ -52,7 +54,8 @@ public class RetryIntegrationTests : IAsyncDisposable
         _syncService = new TodoListSyncService(
             _context,
             _mockExternalClient.Object,
-            _mockConflictResolver.Object,
+            _mockTodoListConflictResolver.Object,
+            _mockTodoItemConflictResolver.Object,
             _retryPolicyService,
             _mockTodoListService.Object,
             _mockTodoItemService.Object,
@@ -260,7 +263,8 @@ public class RetryIntegrationTests : IAsyncDisposable
         return new TodoListSyncService(
             _context,
             externalClient,
-            _mockConflictResolver.Object,
+            _mockTodoListConflictResolver.Object,
+            _mockTodoItemConflictResolver.Object,
             _retryPolicyService,
             _mockTodoListService.Object,
             _mockTodoItemService.Object,

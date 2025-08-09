@@ -6,7 +6,8 @@ public class TodoSyncServiceTests : IDisposable
 {
 	private readonly TodoContext _context;
 	private readonly Mock<IExternalTodoApiClient> _mockExternalClient;
-	private readonly Mock<IConflictResolver> _mockConflictResolver;
+	private readonly Mock<IConflictResolver<TodoList, ExternalTodoList>> _mockTodoListConflictResolver;
+	private readonly Mock<IConflictResolver<TodoItem, ExternalTodoItem>> _mockTodoItemConflictResolver;
 	private readonly Mock<IRetryPolicyService> _mockRetryPolicyService;
 	private readonly Mock<ILogger<TodoListSyncService>> _mockLogger;
 	private readonly Mock<ITodoListService> _mockTodoListService;
@@ -24,7 +25,8 @@ public class TodoSyncServiceTests : IDisposable
 
 		// Setup mocks
 		_mockExternalClient = new Mock<IExternalTodoApiClient>();
-		_mockConflictResolver = new Mock<IConflictResolver>();
+		_mockTodoListConflictResolver = new Mock<IConflictResolver<TodoList, ExternalTodoList>>();
+		_mockTodoItemConflictResolver = new Mock<IConflictResolver<TodoItem, ExternalTodoItem>>();
 		_mockRetryPolicyService = new Mock<IRetryPolicyService>();
 		_mockLogger = new Mock<ILogger<TodoListSyncService>>();
 		_mockTodoListService = new Mock<ITodoListService>();
@@ -42,7 +44,8 @@ public class TodoSyncServiceTests : IDisposable
 		_syncService = new TodoListSyncService(
 			_context,
 			_mockExternalClient.Object,
-			_mockConflictResolver.Object,
+						_mockTodoListConflictResolver.Object,
+			_mockTodoItemConflictResolver.Object,
 			_mockRetryPolicyService.Object,
 			_mockTodoListService.Object,
 			_mockTodoItemService.Object,

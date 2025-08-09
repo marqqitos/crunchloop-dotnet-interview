@@ -1,17 +1,22 @@
 using TodoApi.Common;
 using TodoApi.Tests.Builders;
+using TodoApi.Services.ConflictResolver;
 
 namespace TodoApi.Tests.Services;
 
 public class ConflictResolverTests
 {
-    private readonly Mock<ILogger<ConflictResolver>> _mockLogger;
-    private readonly ConflictResolver _conflictResolver;
+    private readonly Mock<ILogger<TodoListConflictResolver>> _mockTodoListLogger;
+    private readonly Mock<ILogger<TodoItemConflictResolver>> _mockTodoItemLogger;
+    private readonly TodoListConflictResolver _todoListConflictResolver;
+    private readonly TodoItemConflictResolver _todoItemConflictResolver;
 
     public ConflictResolverTests()
     {
-        _mockLogger = new Mock<ILogger<ConflictResolver>>();
-        _conflictResolver = new ConflictResolver(_mockLogger.Object);
+        _mockTodoListLogger = new Mock<ILogger<TodoListConflictResolver>>();
+        _mockTodoItemLogger = new Mock<ILogger<TodoItemConflictResolver>>();
+        _todoListConflictResolver = new TodoListConflictResolver(_mockTodoListLogger.Object);
+        _todoItemConflictResolver = new TodoItemConflictResolver(_mockTodoItemLogger.Object);
     }
 
     [Fact]
@@ -34,7 +39,7 @@ public class ConflictResolverTests
             .Build();
 
         // Act
-        var result = _conflictResolver.ResolveTodoListConflict(localTodoList, externalTodoList);
+        var result = _todoListConflictResolver.ResolveConflict(localTodoList, externalTodoList);
 
         // Assert
         Assert.False(result.HasConflict);
@@ -62,7 +67,7 @@ public class ConflictResolverTests
             .Build();
 
         // Act
-        var result = _conflictResolver.ResolveTodoListConflict(localTodoList, externalTodoList);
+        var result = _todoListConflictResolver.ResolveConflict(localTodoList, externalTodoList);
 
         // Assert
         Assert.True(result.HasConflict);
@@ -92,7 +97,7 @@ public class ConflictResolverTests
             .Build();
 
         // Act
-        var result = _conflictResolver.ResolveTodoListConflict(localTodoList, externalTodoList, ConflictResolutionStrategy.LocalWins);
+        var result = _todoListConflictResolver.ResolveConflict(localTodoList, externalTodoList, ConflictResolutionStrategy.LocalWins);
 
         // Assert
         Assert.True(result.HasConflict);
@@ -121,7 +126,7 @@ public class ConflictResolverTests
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            _conflictResolver.ResolveTodoListConflict(localTodoList, externalTodoList, ConflictResolutionStrategy.Manual));
+            _todoListConflictResolver.ResolveConflict(localTodoList, externalTodoList, ConflictResolutionStrategy.Manual));
 
         Assert.Contains("Manual conflict resolution required", exception.Message);
     }
@@ -147,7 +152,7 @@ public class ConflictResolverTests
             .Build();
 
         // Act
-        var result = _conflictResolver.ResolveTodoItemConflict(localTodoItem, externalTodoItem);
+        var result = _todoItemConflictResolver.ResolveConflict(localTodoItem, externalTodoItem);
 
         // Assert
         Assert.True(result.HasConflict);
@@ -181,7 +186,7 @@ public class ConflictResolverTests
             .Build();
 
         // Act
-        _conflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
+        _todoListConflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
 
         // Assert
         Assert.Equal("External Name", localTodoList.Name);
@@ -219,7 +224,7 @@ public class ConflictResolverTests
             .Build();
 
         // Act
-        _conflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
+        _todoListConflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
 
         // Assert
         Assert.Equal(originalName, localTodoList.Name); // Should remain unchanged
@@ -253,7 +258,7 @@ public class ConflictResolverTests
             .Build();
 
         // Act
-        _conflictResolver.ApplyResolution(localTodoItem, externalTodoItem, conflictInfo);
+        _todoItemConflictResolver.ApplyResolution(localTodoItem, externalTodoItem, conflictInfo);
 
         // Assert
         Assert.Equal("External Description", localTodoItem.Description);
@@ -286,7 +291,7 @@ public class ConflictResolverTests
             .Build();
 
         // Act
-        _conflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
+        _todoListConflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
 
         // Assert
         Assert.Equal("External Name", localTodoList.Name);
@@ -319,7 +324,7 @@ public class ConflictResolverTests
             .Build();
 
         // Act
-        _conflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
+        _todoListConflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
 
         // Assert
         Assert.Equal(originalName, localTodoList.Name); // Should remain unchanged
