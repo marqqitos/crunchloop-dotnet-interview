@@ -1,9 +1,4 @@
-using Microsoft.Extensions.Logging;
-using Moq;
 using TodoApi.Common;
-using TodoApi.Dtos.External;
-using TodoApi.Models;
-using TodoApi.Services;
 using TodoApi.Tests.Builders;
 
 namespace TodoApi.Tests.Services;

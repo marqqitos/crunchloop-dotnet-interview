@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using TodoApi.Models;
 
 namespace TodoApi.Services;
 
@@ -40,30 +39,30 @@ public class SyncStateService : ISyncStateService
     public async Task UpdateLastSyncTimestampAsync(DateTime syncTimestamp)
     {
         _logger.LogInformation("Updating last sync timestamp to {SyncTimestamp}", syncTimestamp);
-        
+
         // Update all TodoLists that have been synced
         var syncedTodoLists = await _context.TodoList
             .Where(t => t.ExternalId != null)
             .ToListAsync();
-            
+
         foreach (var todoList in syncedTodoLists)
         {
             todoList.LastSyncedAt = syncTimestamp;
         }
-        
+
         // Update all TodoItems that have been synced
         var syncedTodoItems = await _context.TodoItem
             .Where(t => t.ExternalId != null)
             .ToListAsync();
-            
+
         foreach (var todoItem in syncedTodoItems)
         {
             todoItem.LastSyncedAt = syncTimestamp;
         }
-        
+
         await _context.SaveChangesAsync();
-        
-        _logger.LogInformation("Updated last sync timestamp for {TodoListCount} TodoLists and {TodoItemCount} TodoItems", 
+
+        _logger.LogInformation("Updated last sync timestamp for {TodoListCount} TodoLists and {TodoItemCount} TodoItems",
             syncedTodoLists.Count, syncedTodoItems.Count);
     }
 
@@ -71,7 +70,7 @@ public class SyncStateService : ISyncStateService
     {
         var lastSync = await GetLastSyncTimestampAsync();
         var isAvailable = lastSync.HasValue;
-        
+
         _logger.LogDebug("Delta sync available: {IsAvailable} (last sync: {LastSync})", isAvailable, lastSync);
         return isAvailable;
     }
@@ -96,4 +95,4 @@ public class SyncStateService : ISyncStateService
         _logger.LogDebug("Earliest last modified timestamp: {Earliest}", earliest);
         return earliest != default ? earliest : null;
     }
-} 
+}

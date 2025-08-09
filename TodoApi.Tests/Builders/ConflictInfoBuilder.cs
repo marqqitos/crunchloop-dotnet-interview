@@ -1,5 +1,4 @@
 using TodoApi.Common;
-using TodoApi.Models;
 
 namespace TodoApi.Tests.Builders;
 

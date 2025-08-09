@@ -13,16 +13,16 @@ public interface IConflictResolver
     /// Resolves conflicts for TodoList entities using the configured strategy
     /// </summary>
     ConflictInfo ResolveTodoListConflict(
-        TodoList localEntity, 
-        ExternalTodoList externalEntity, 
+        TodoList localEntity,
+        ExternalTodoList externalEntity,
         ConflictResolutionStrategy strategy = ConflictResolutionStrategy.ExternalWins);
 
     /// <summary>
     /// Resolves conflicts for TodoItem entities using the configured strategy
     /// </summary>
     ConflictInfo ResolveTodoItemConflict(
-        TodoItem localEntity, 
-        ExternalTodoItem externalEntity, 
+        TodoItem localEntity,
+        ExternalTodoItem externalEntity,
         ConflictResolutionStrategy strategy = ConflictResolutionStrategy.ExternalWins);
 
     /// <summary>

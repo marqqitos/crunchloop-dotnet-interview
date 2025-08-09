@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using TodoApi.Models;
 
 namespace TodoApi.Services;
 
@@ -45,7 +44,7 @@ public class ChangeDetectionService : IChangeDetectionService
             todoList.IsSyncPending = true;
             todoList.LastModified = DateTime.UtcNow;
             await _context.SaveChangesAsync();
-            
+
             _logger.LogDebug("Marked TodoList {TodoListId} as pending sync", todoListId);
         }
         else
@@ -61,7 +60,7 @@ public class ChangeDetectionService : IChangeDetectionService
         {
             todoItem.IsSyncPending = true;
             todoItem.LastModified = DateTime.UtcNow;
-            
+
             // Also mark the parent TodoList as pending since it contains changed items
             var todoList = await _context.TodoList.FindAsync(todoItem.TodoListId);
             if (todoList != null)
@@ -69,10 +68,10 @@ public class ChangeDetectionService : IChangeDetectionService
                 todoList.IsSyncPending = true;
                 todoList.LastModified = DateTime.UtcNow;
             }
-            
+
             await _context.SaveChangesAsync();
-            
-            _logger.LogDebug("Marked TodoItem {TodoItemId} and its parent TodoList {TodoListId} as pending sync", 
+
+            _logger.LogDebug("Marked TodoItem {TodoItemId} and its parent TodoList {TodoListId} as pending sync",
                 todoItemId, todoItem.TodoListId);
         }
         else
@@ -89,7 +88,7 @@ public class ChangeDetectionService : IChangeDetectionService
             todoList.IsSyncPending = false;
             todoList.LastSyncedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
-            
+
             _logger.LogDebug("Cleared pending flag for TodoList {TodoListId}", todoListId);
         }
     }
@@ -102,7 +101,7 @@ public class ChangeDetectionService : IChangeDetectionService
             todoItem.IsSyncPending = false;
             todoItem.LastSyncedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
-            
+
             _logger.LogDebug("Cleared pending flag for TodoItem {TodoItemId}", todoItemId);
         }
     }
@@ -111,7 +110,7 @@ public class ChangeDetectionService : IChangeDetectionService
     {
         var pendingTodoLists = await _context.TodoList.CountAsync(tl => tl.IsSyncPending);
         var pendingTodoItems = await _context.TodoItem.CountAsync(ti => ti.IsSyncPending);
-        
+
         return pendingTodoLists + pendingTodoItems;
     }
-} 
+}

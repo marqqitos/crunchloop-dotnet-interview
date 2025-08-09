@@ -57,7 +57,7 @@ public class TodoSyncService : ISyncService
             var failedCount = 0;
 
             var syncRetryPolicy = _retryPolicyService.GetSyncRetryPolicy();
-            
+
             foreach (var todoList in pendingTodoLists)
             {
                 try
@@ -111,11 +111,11 @@ public class TodoSyncService : ISyncService
 
             if (externalTodoLists == null || externalTodoLists.Count == 0)
             {
-                _logger.LogInformation("No changes detected from external API");
+                _logger.LogInformation("No TodoLists found in external API");
                 return;
             }
 
-            _logger.LogInformation("Found {Count} TodoLists in external API (delta sync: {IsDeltaSync})", 
+            _logger.LogInformation("Found {Count} TodoLists in external API (delta sync: {IsDeltaSync})",
                 externalTodoLists.Count, isDeltaSyncAvailable);
 
             var createdCount = 0;
@@ -145,7 +145,7 @@ public class TodoSyncService : ISyncService
             {
                 var syncTimestamp = DateTime.UtcNow;
                 await _syncStateService.UpdateLastSyncTimestampAsync(syncTimestamp);
-                _logger.LogInformation("Updated sync timestamp to {SyncTimestamp} after processing {TotalCount} entities", 
+                _logger.LogInformation("Updated sync timestamp to {SyncTimestamp} after processing {TotalCount} entities",
                     syncTimestamp, createdCount + updatedCount);
             }
 
@@ -168,11 +168,11 @@ public class TodoSyncService : ISyncService
             // Check if there are any pending changes before starting sync
             var hasPendingChanges = await _changeDetectionService.HasPendingChangesAsync();
             var pendingCount = await _changeDetectionService.GetPendingChangesCountAsync();
-            
+
             // Also check for any unsynced TodoLists (no ExternalId)
             var hasUnsyncedTodoLists = await _context.TodoList.AnyAsync(tl => tl.ExternalId == null);
-            
-            _logger.LogInformation("Sync check: HasPendingChanges={HasPendingChanges}, PendingCount={PendingCount}, HasUnsynced={HasUnsynced}", 
+
+            _logger.LogInformation("Sync check: HasPendingChanges={HasPendingChanges}, PendingCount={PendingCount}, HasUnsynced={HasUnsynced}",
                 hasPendingChanges, pendingCount, hasUnsyncedTodoLists);
 
             // Phase 1: Push local changes to external API when there are pending changes OR unsynced lists
@@ -314,13 +314,13 @@ public class TodoSyncService : ISyncService
     {
         // Use conflict resolver to determine what to do
         var conflictInfo = _conflictResolver.ResolveTodoListConflict(localTodoList, externalTodoList);
-        
+
         // Apply the resolution
         _conflictResolver.ApplyResolution(localTodoList, externalTodoList, conflictInfo);
 
         // Sync TodoItems with conflict resolution
         var itemChanges = await SyncTodoItemsFromExternalAsync(localTodoList, externalTodoList.Items);
-        
+
         // Always save changes (even if just updating LastSyncedAt)
         await _context.SaveChangesAsync();
 
@@ -370,17 +370,17 @@ public class TodoSyncService : ISyncService
             {
                 // Use conflict resolver to determine what to do
                 var conflictInfo = _conflictResolver.ResolveTodoItemConflict(localItem, externalItem);
-                
+
                 // Apply the resolution
                 _conflictResolver.ApplyResolution(localItem, externalItem, conflictInfo);
 
                 if (conflictInfo.ConflictResolved || conflictInfo.HasConflict || externalItem.UpdatedAt > localItem.LastModified)
                 {
                     hasChanges = true;
-                    
+
                     if (conflictInfo.ConflictResolved)
                     {
-                        _logger.LogDebug("Conflict resolved for TodoItem {LocalId} - {Reason}", 
+                        _logger.LogDebug("Conflict resolved for TodoItem {LocalId} - {Reason}",
                             localItem.Id, conflictInfo.ResolutionReason);
                     }
                     else

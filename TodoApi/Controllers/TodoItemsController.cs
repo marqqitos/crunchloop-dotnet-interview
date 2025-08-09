@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using TodoApi.Dtos;
-using TodoApi.Models;
 using TodoApi.Services;
 
 namespace TodoApi.Controllers
@@ -10,159 +8,82 @@ namespace TodoApi.Controllers
     [ApiController]
     public class TodoItemsController : ControllerBase
     {
-        private readonly TodoContext _context;
-        private readonly IChangeDetectionService _changeDetectionService;
+        private readonly ITodoItemService _todoItemService;
 
-        public TodoItemsController(TodoContext context, IChangeDetectionService changeDetectionService)
+        public TodoItemsController(ITodoItemService todoItemService)
         {
-            _context = context;
-            _changeDetectionService = changeDetectionService;
+            _todoItemService = todoItemService;
         }
 
-        // GET: api/todolists/5/items
         [HttpGet]
         public async Task<ActionResult<IList<TodoItemResponse>>> GetTodoItems(long todoListId)
         {
-            var todoList = await _context.TodoList.FindAsync(todoListId);
-            if (todoList == null)
-            {
-                return NotFound($"TodoList with id {todoListId} not found");
-            }
+            var items = await _todoItemService.GetTodoItemsAsync(todoListId);
 
-            var todoItems = await _context.TodoItem
-                .Where(item => item.TodoListId == todoListId)
-                .Select(item => new TodoItemResponse
-                {
-                    Id = item.Id,
-                    Description = item.Description,
-                    Completed = item.IsCompleted,
-                    TodoListId = item.TodoListId
-                })
-                .ToListAsync();
+			if (items is null)
+				return NotFound($"TodoList with id {todoListId} not found");
 
-            return Ok(todoItems);
+			return Ok(items);
         }
 
-        // GET: api/todolists/5/items/3
         [HttpGet("{id}")]
         public async Task<ActionResult<TodoItemResponse>> GetTodoItem(long todoListId, long id)
         {
-            var todoList = await _context.TodoList.FindAsync(todoListId);
-            if (todoList == null)
-            {
-                return NotFound($"TodoList with id {todoListId} not found");
-            }
+            var listExists = await _todoItemService.TodoListExistsAsync(todoListId);
+            var todoItem = await _todoItemService.GetTodoItemAsync(todoListId, id);
 
-            var todoItem = await _context.TodoItem
-                .Where(item => item.Id == id && item.TodoListId == todoListId)
-                .Select(item => new TodoItemResponse
-                {
-                    Id = item.Id,
-                    Description = item.Description,
-                    Completed = item.IsCompleted,
-                    TodoListId = item.TodoListId
-                })
-                .FirstOrDefaultAsync();
-
-            if (todoItem == null)
+			if (todoItem is null)
             {
+                if (!listExists)
+                    return NotFound($"TodoList with id {todoListId} not found");
+
                 return NotFound($"TodoItem with id {id} not found in TodoList {todoListId}");
             }
 
             return Ok(todoItem);
         }
 
-        // PUT: api/todolists/5/items/3
-        // To protect from over-posting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<ActionResult<TodoItemResponse>> PutTodoItem(long todoListId, long id, UpdateTodoItem payload)
         {
-            var todoList = await _context.TodoList.FindAsync(todoListId);
-            if (todoList == null)
-            {
-                return NotFound($"TodoList with id {todoListId} not found");
-            }
+            var listExists = await _todoItemService.TodoListExistsAsync(todoListId);
+            var updated = await _todoItemService.UpdateTodoItemAsync(todoListId, id, payload);
 
-            var todoItem = await _context.TodoItem
-                .FirstOrDefaultAsync(item => item.Id == id && item.TodoListId == todoListId);
-
-            if (todoItem == null)
+			if (updated is null)
             {
+                if (!listExists)
+                    return NotFound($"TodoList with id {todoListId} not found");
+
                 return NotFound($"TodoItem with id {id} not found in TodoList {todoListId}");
             }
 
-            todoItem.Description = payload.Description;
-            todoItem.IsCompleted = payload.Completed;
-            todoItem.LastModified = DateTime.UtcNow;
-            todoItem.IsSyncPending = true; // Mark as pending for sync
-            
-            await _context.SaveChangesAsync();
-
-            var response = new TodoItemResponse
-            {
-                Id = todoItem.Id,
-                Description = todoItem.Description,
-                Completed = todoItem.IsCompleted,
-                TodoListId = todoItem.TodoListId
-            };
-
-            return Ok(response);
+            return Ok(updated);
         }
 
-        // POST: api/todolists/5/items
-        // To protect from over-posting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<TodoItemResponse>> PostTodoItem(long todoListId, CreateTodoItem payload)
         {
-            var todoList = await _context.TodoList.FindAsync(todoListId);
-            if (todoList == null)
-            {
-                return NotFound($"TodoList with id {todoListId} not found");
-            }
+            var created = await _todoItemService.CreateTodoItemAsync(todoListId, payload);
 
-            var todoItem = new TodoItem 
-            { 
-                Description = payload.Description,
-                IsCompleted = payload.Completed,
-                TodoListId = todoListId,
-                LastModified = DateTime.UtcNow,
-                IsSyncPending = true // Mark as pending for sync
-            };
+			if (created is null)
+				return NotFound($"TodoList with id {todoListId} not found");
 
-            _context.TodoItem.Add(todoItem);
-            await _context.SaveChangesAsync();
-
-            var response = new TodoItemResponse
-            {
-                Id = todoItem.Id,
-                Description = todoItem.Description,
-                Completed = todoItem.IsCompleted,
-                TodoListId = todoItem.TodoListId
-            };
-
-            return CreatedAtAction("GetTodoItem", new { todoListId = todoListId, id = todoItem.Id }, response);
+			return CreatedAtAction("GetTodoItem", new { todoListId = todoListId, id = created.Id }, created);
         }
 
-        // DELETE: api/todolists/5/items/3
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteTodoItem(long todoListId, long id)
         {
-            var todoList = await _context.TodoList.FindAsync(todoListId);
-            if (todoList == null)
-            {
-                return NotFound($"TodoList with id {todoListId} not found");
-            }
+            var listExists = await _todoItemService.TodoListExistsAsync(todoListId);
+            var found = await _todoItemService.DeleteTodoItemAsync(todoListId, id);
 
-            var todoItem = await _context.TodoItem
-                .FirstOrDefaultAsync(item => item.Id == id && item.TodoListId == todoListId);
-
-            if (todoItem == null)
+			if (!found)
             {
+                if (!listExists)
+                    return NotFound($"TodoList with id {todoListId} not found");
+
                 return NotFound($"TodoItem with id {id} not found in TodoList {todoListId}");
             }
-
-            _context.TodoItem.Remove(todoItem);
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }

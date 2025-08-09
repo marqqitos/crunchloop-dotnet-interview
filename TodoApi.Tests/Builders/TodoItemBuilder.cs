@@ -1,5 +1,3 @@
-using TodoApi.Models;
-
 namespace TodoApi.Tests.Builders;
 
 public class TodoItemBuilder

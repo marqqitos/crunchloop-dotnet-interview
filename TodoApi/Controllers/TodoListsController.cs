@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using TodoApi.Dtos;
-using TodoApi.Models;
 using TodoApi.Services;
 
 namespace TodoApi.Controllers
@@ -10,146 +8,60 @@ namespace TodoApi.Controllers
     [ApiController]
     public class TodoListsController : ControllerBase
     {
-        private readonly TodoContext _context;
-        private readonly IChangeDetectionService _changeDetectionService;
+        private readonly ITodoListService _todoListService;
 
-        public TodoListsController(TodoContext context, IChangeDetectionService changeDetectionService)
+        public TodoListsController(ITodoListService todoListService)
         {
-            _context = context;
-            _changeDetectionService = changeDetectionService;
+            _todoListService = todoListService;
         }
 
-        // GET: api/todolists
         [HttpGet]
         public async Task<ActionResult<IList<TodoListResponse>>> GetTodoLists()
         {
-            var todoLists = await _context.TodoList
-                .Include(tl => tl.Items)
-                .Select(tl => new TodoListResponse
-                {
-                    Id = tl.Id,
-                    Name = tl.Name,
-                    Items = tl.Items.Select(item => new TodoItemResponse
-                    {
-                        Id = item.Id,
-                        Description = item.Description,
-                        Completed = item.IsCompleted,
-                        TodoListId = item.TodoListId
-                    }).ToList()
-                })
-                .ToListAsync();
-
+            var todoLists = await _todoListService.GetTodoListsAsync();
             return Ok(todoLists);
         }
 
-        // GET: api/todolists/5
         [HttpGet("{id}")]
         public async Task<ActionResult<TodoListResponse>> GetTodoList(long id)
         {
-            var todoList = await _context.TodoList
-                .Include(tl => tl.Items)
-                .Where(tl => tl.Id == id)
-                .Select(tl => new TodoListResponse
-                {
-                    Id = tl.Id,
-                    Name = tl.Name,
-                    Items = tl.Items.Select(item => new TodoItemResponse
-                    {
-                        Id = item.Id,
-                        Description = item.Description,
-                        Completed = item.IsCompleted,
-                        TodoListId = item.TodoListId
-                    }).ToList()
-                })
-                .FirstOrDefaultAsync();
+            var todoList = await _todoListService.GetTodoListAsync(id);
 
-            if (todoList == null)
-            {
-                return NotFound();
-            }
+			if (todoList is null)
+				return NotFound();
 
             return Ok(todoList);
         }
 
-        // PUT: api/todolists/5
-        // To protect from over-posting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<ActionResult<TodoListResponse>> PutTodoList(long id, UpdateTodoList payload)
         {
-            var todoList = await _context.TodoList
-                .Include(tl => tl.Items)
-                .FirstOrDefaultAsync(tl => tl.Id == id);
+            var updated = await _todoListService.UpdateTodoListAsync(id, payload);
 
-            if (todoList == null)
-            {
-                return NotFound();
-            }
+			if (updated is null)
+				return NotFound();
 
-            todoList.Name = payload.Name;
-            todoList.LastModified = DateTime.UtcNow;
-            todoList.IsSyncPending = true; // Mark as pending for sync
-            await _context.SaveChangesAsync();
-
-            var response = new TodoListResponse
-            {
-                Id = todoList.Id,
-                Name = todoList.Name,
-                Items = todoList.Items.Select(item => new TodoItemResponse
-                {
-                    Id = item.Id,
-                    Description = item.Description,
-                    Completed = item.IsCompleted,
-                    TodoListId = item.TodoListId
-                }).ToList()
-            };
-
-            return Ok(response);
+            return Ok(updated);
         }
 
-        // POST: api/todolists
-        // To protect from over-posting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<TodoListResponse>> PostTodoList(CreateTodoList payload)
         {
-            var todoList = new TodoList 
-            { 
-                Name = payload.Name,
-                LastModified = DateTime.UtcNow,
-                IsSyncPending = true // Mark as pending for sync
-            };
-
-            _context.TodoList.Add(todoList);
-            await _context.SaveChangesAsync();
-
-            var response = new TodoListResponse
-            {
-                Id = todoList.Id,
-                Name = todoList.Name,
-                Items = new List<TodoItemResponse>()
-            };
-
-            return CreatedAtAction("GetTodoList", new { id = todoList.Id }, response);
+            var created = await _todoListService.CreateTodoListAsync(payload);
+            return CreatedAtAction("GetTodoList", new { id = created.Id }, created);
         }
 
-        // DELETE: api/todolists/5
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteTodoList(long id)
         {
-            var todoList = await _context.TodoList.FindAsync(id);
-            if (todoList == null)
-            {
-                return NotFound();
-            }
+            var found = await _todoListService.DeleteTodoListAsync(id);
 
-            _context.TodoList.Remove(todoList);
-            await _context.SaveChangesAsync();
+			if (!found)
+				return NotFound();
 
             return NoContent();
         }
 
-        private bool TodoListExists(long id)
-        {
-            return (_context.TodoList?.Any(e => e.Id == id)).GetValueOrDefault();
-        }
+        private bool TodoListExists(long id) => throw new NotImplementedException();
     }
 }
