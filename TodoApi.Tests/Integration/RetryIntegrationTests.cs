@@ -13,11 +13,12 @@ public class RetryIntegrationTests : IAsyncDisposable
     private readonly TodoContext _context;
     private readonly Mock<IExternalTodoApiClient> _mockExternalClient;
     private readonly Mock<IConflictResolver> _mockConflictResolver;
-    private readonly Mock<ILogger<TodoSyncService>> _mockSyncLogger;
-    private readonly Mock<IChangeDetectionService> _mockChangeDetectionService;
+    private readonly Mock<ILogger<TodoListSyncService>> _mockSyncLogger;
+    private readonly Mock<ITodoListService> _mockTodoListService;
+    private readonly Mock<ITodoItemService> _mockTodoItemService;
     private readonly IRetryPolicyService _retryPolicyService;
     private readonly Mock<ISyncStateService> _mockSyncStateService;
-    private readonly TodoSyncService _syncService;
+    private readonly TodoListSyncService _syncService;
 
     public RetryIntegrationTests()
     {
@@ -28,8 +29,9 @@ public class RetryIntegrationTests : IAsyncDisposable
         _context = new TodoContext(options);
         _mockExternalClient = new Mock<IExternalTodoApiClient>();
         _mockConflictResolver = new Mock<IConflictResolver>();
-        _mockSyncLogger = new Mock<ILogger<TodoSyncService>>();
-        _mockChangeDetectionService = new Mock<IChangeDetectionService>();
+        _mockSyncLogger = new Mock<ILogger<TodoListSyncService>>();
+        _mockTodoListService = new Mock<ITodoListService>();
+        _mockTodoItemService = new Mock<ITodoItemService>();
         _mockSyncStateService = new Mock<ISyncStateService>();
         // Setup retry policy service
         var retryOptions = new RetryOptions
@@ -47,12 +49,13 @@ public class RetryIntegrationTests : IAsyncDisposable
 
         _mockExternalClient.Setup(x => x.SourceId).Returns("retry-test-source");
 
-        _syncService = new TodoSyncService(
+        _syncService = new TodoListSyncService(
             _context,
             _mockExternalClient.Object,
             _mockConflictResolver.Object,
             _retryPolicyService,
-            _mockChangeDetectionService.Object,
+            _mockTodoListService.Object,
+            _mockTodoItemService.Object,
             _mockSyncStateService.Object,
             _mockSyncLogger.Object
         );
@@ -179,8 +182,6 @@ public class RetryIntegrationTests : IAsyncDisposable
         mockHandler.Protected().Verify("SendAsync", Times.Exactly(2), ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>());
     }
 
-
-
     [Fact]
     public async Task SyncFromExternal_WithServerError_ShouldRetryAndEventuallySucceed()
     {
@@ -254,15 +255,15 @@ public class RetryIntegrationTests : IAsyncDisposable
             _retryPolicyService);
     }
 
-    private TodoSyncService CreateSyncServiceWithRealExternalClient(ExternalTodoApiClient externalClient)
+    private TodoListSyncService CreateSyncServiceWithRealExternalClient(ExternalTodoApiClient externalClient)
     {
-        var mockChangeDetectionService = new Mock<IChangeDetectionService>();
-        return new TodoSyncService(
+        return new TodoListSyncService(
             _context,
             externalClient,
             _mockConflictResolver.Object,
             _retryPolicyService,
-            mockChangeDetectionService.Object,
+            _mockTodoListService.Object,
+            _mockTodoItemService.Object,
             _mockSyncStateService.Object,
             _mockSyncLogger.Object);
     }

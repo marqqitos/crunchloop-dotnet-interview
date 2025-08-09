@@ -7,10 +7,12 @@ namespace TodoApi.Services;
 public class TodoItemService : ITodoItemService
 {
     private readonly TodoContext _context;
+	private readonly ILogger<TodoItemService> _logger;
 
-    public TodoItemService(TodoContext context)
+    public TodoItemService(TodoContext context, ILogger<TodoItemService> logger)
     {
         _context = context;
+		_logger = logger;
     }
 
 	public async Task<bool> TodoListExistsAsync(long todoListId)
@@ -130,6 +132,51 @@ public class TodoItemService : ITodoItemService
         await _context.SaveChangesAsync();
         return true;
     }
+
+	public async Task MarkAsPendingAsync(long todoItemId)
+	{
+		var todoItem = await _context.TodoItem.FindAsync(todoItemId);
+
+		if (todoItem is not null)
+		{
+			todoItem.IsSyncPending = true;
+			todoItem.LastModified = DateTime.UtcNow;
+
+			// Also mark the parent TodoList as pending since it contains changed items
+			var todoList = await _context.TodoList.FindAsync(todoItem.TodoListId);
+
+			if (todoList is not null)
+			{
+				todoList.IsSyncPending = true;
+				todoList.LastModified = DateTime.UtcNow;
+			}
+
+			await _context.SaveChangesAsync();
+
+			_logger.LogDebug("Marked TodoItem {TodoItemId} and its parent TodoList {TodoListId} as pending sync",
+				todoItemId, todoItem.TodoListId);
+		}
+		else
+		{
+			_logger.LogWarning("Attempted to mark non-existent TodoItem {TodoItemId} as pending", todoItemId);
+		}
+	}
+
+	public async Task<int> GetPendingChangesCountAsync()
+		=> await _context.TodoItem.CountAsync(ti => ti.IsSyncPending);
+
+	public async Task ClearPendingFlagAsync(long todoItemId)
+	{
+		var todoItem = await _context.TodoItem.FindAsync(todoItemId);
+		if (todoItem is not null)
+		{
+			todoItem.IsSyncPending = false;
+			todoItem.LastSyncedAt = DateTime.UtcNow;
+			await _context.SaveChangesAsync();
+
+			_logger.LogDebug("Cleared pending flag for TodoItem {TodoItemId}", todoItemId);
+		}
+	}
 }
 
 

@@ -7,10 +7,12 @@ namespace TodoApi.Services;
 public class TodoListService : ITodoListService
 {
 	private readonly TodoContext _context;
+	private readonly ILogger<TodoListService> _logger;
 
-	public TodoListService(TodoContext context)
+	public TodoListService(TodoContext context, ILogger<TodoListService> logger)
 	{
 		_context = context;
+		_logger = logger;
 	}
 
 	public async Task<IList<TodoListResponse>> GetTodoListsAsync()
@@ -108,6 +110,40 @@ public class TodoListService : ITodoListService
 		await _context.SaveChangesAsync();
 
 		return true;
+	}
+
+    public async Task MarkAsPendingAsync(long todoListId)
+    {
+        var todoList = await _context.TodoList.FindAsync(todoListId);
+
+		if (todoList is not null)
+        {
+            todoList.IsSyncPending = true;
+            todoList.LastModified = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogDebug("Marked TodoList {TodoListId} as pending sync", todoListId);
+        }
+        else
+        {
+            _logger.LogWarning("Attempted to mark non-existent TodoList {TodoListId} as pending", todoListId);
+        }
+    }
+
+	public async Task<int> GetPendingChangesCountAsync()
+		=> await _context.TodoList.CountAsync(tl => tl.IsSyncPending);
+
+	public async Task ClearPendingFlagAsync(long todoListId)
+	{
+		var todoList = await _context.TodoList.FindAsync(todoListId);
+		if (todoList is not null)
+		{
+			todoList.IsSyncPending = false;
+			todoList.LastSyncedAt = DateTime.UtcNow;
+			await _context.SaveChangesAsync();
+
+			_logger.LogDebug("Cleared pending flag for TodoList {TodoListId}", todoListId);
+		}
 	}
 }
 

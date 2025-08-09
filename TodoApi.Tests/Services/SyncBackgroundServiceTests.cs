@@ -1,25 +1,25 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TodoApi.Configuration;
+using TodoApi.Services;
 
 namespace TodoApi.Tests.Services;
 
 public class SyncBackgroundServiceTests
 {
     private readonly Mock<ILogger<SyncBackgroundService>> _mockLogger;
-    private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
-    private readonly Mock<IServiceScope> _mockServiceScope;
-    private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<ISyncService> _mockSyncService;
+	private readonly Mock<ITodoListService> _mockTodoListService;
+	private readonly Mock<ITodoItemService> _mockTodoItemService;
     private readonly SyncOptions _syncOptions;
+
+	private SyncBackgroundService _sut;
 
     public SyncBackgroundServiceTests()
     {
         _mockSyncService = new Mock<ISyncService>();
         _mockLogger = new Mock<ILogger<SyncBackgroundService>>();
-        _mockServiceProvider = new Mock<IServiceProvider>();
-        _mockServiceScope = new Mock<IServiceScope>();
-        _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        _mockTodoListService = new Mock<ITodoListService>();
+        _mockTodoItemService = new Mock<ITodoItemService>();
 
         _syncOptions = new SyncOptions
         {
@@ -29,10 +29,12 @@ public class SyncBackgroundServiceTests
             SyncOnStartup = false
         };
 
-        // Setup service scope factory
-        _mockServiceScope.Setup(x => x.ServiceProvider).Returns(_mockServiceProvider.Object);
-        _mockServiceScopeFactory.Setup(x => x.CreateScope()).Returns(_mockServiceScope.Object);
-        _mockServiceProvider.Setup(x => x.GetService(typeof(ISyncService))).Returns(_mockSyncService.Object);
+		_sut = new SyncBackgroundService(
+			_mockSyncService.Object,
+			_mockTodoListService.Object,
+			_mockTodoItemService.Object,
+			_mockLogger.Object,
+			new OptionsWrapper<SyncOptions>(_syncOptions));
     }
 
     [Fact]
@@ -42,18 +44,16 @@ public class SyncBackgroundServiceTests
         var mockOptions = new Mock<IOptions<SyncOptions>>();
         mockOptions.Setup(x => x.Value).Returns(_syncOptions);
 
-        var service = new SyncBackgroundService(
-            _mockLogger.Object,
-            mockOptions.Object,
-            _mockServiceScopeFactory.Object);
-
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(2)); // Cancel after 2 seconds
 
+		_mockTodoListService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(1);
+		_mockTodoItemService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(1);
+
         // Act
-        await service.StartAsync(cancellationTokenSource.Token);
+        await _sut.StartAsync(cancellationTokenSource.Token);
         await Task.Delay(TimeSpan.FromSeconds(3)); // Wait a bit longer to ensure sync is called
-        await service.StopAsync(cancellationTokenSource.Token);
+        await _sut.StopAsync(cancellationTokenSource.Token);
 
         // Assert
         _mockSyncService.Verify(x => x.PerformFullSyncAsync(), Times.AtLeast(1));
@@ -66,21 +66,19 @@ public class SyncBackgroundServiceTests
         var mockOptions = new Mock<IOptions<SyncOptions>>();
         mockOptions.Setup(x => x.Value).Returns(_syncOptions);
 
+		_mockTodoListService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(1);
+		_mockTodoItemService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(1);
+
         _mockSyncService.Setup(x => x.PerformFullSyncAsync())
             .ThrowsAsync(new InvalidOperationException("Test exception"));
-
-        var service = new SyncBackgroundService(
-            _mockLogger.Object,
-            mockOptions.Object,
-            _mockServiceScopeFactory.Object);
 
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(2));
 
         // Act & Assert - Should not throw
-        await service.StartAsync(cancellationTokenSource.Token);
+        await _sut.StartAsync(cancellationTokenSource.Token);
         await Task.Delay(TimeSpan.FromSeconds(3));
-        await service.StopAsync(cancellationTokenSource.Token);
+        await _sut.StopAsync(cancellationTokenSource.Token);
 
         // Verify that the service continued running despite the exception
         _mockSyncService.Verify(x => x.PerformFullSyncAsync(), Times.AtLeast(1));
@@ -93,36 +91,15 @@ public class SyncBackgroundServiceTests
         var mockOptions = new Mock<IOptions<SyncOptions>>();
         mockOptions.Setup(x => x.Value).Returns(_syncOptions);
 
-        var service = new SyncBackgroundService(
-            _mockLogger.Object,
-            mockOptions.Object,
-            _mockServiceScopeFactory.Object);
-
         var cancellationTokenSource = new CancellationTokenSource();
 
         // Act
-        await service.StartAsync(cancellationTokenSource.Token);
+        await _sut.StartAsync(cancellationTokenSource.Token);
         cancellationTokenSource.Cancel();
-        await service.StopAsync(cancellationTokenSource.Token);
+        await _sut.StopAsync(cancellationTokenSource.Token);
 
         // Assert - Service should stop gracefully
         _mockSyncService.Verify(x => x.PerformFullSyncAsync(), Times.AtMost(1));
-    }
-
-    [Fact]
-    public void Constructor_ShouldAcceptValidParameters()
-    {
-        // Arrange
-        var mockOptions = new Mock<IOptions<SyncOptions>>();
-        mockOptions.Setup(x => x.Value).Returns(_syncOptions);
-
-        // Act & Assert - Should not throw
-        var service = new SyncBackgroundService(
-            _mockLogger.Object,
-            mockOptions.Object,
-            _mockServiceScopeFactory.Object);
-
-        Assert.NotNull(service);
     }
 
     [Fact]
@@ -132,14 +109,9 @@ public class SyncBackgroundServiceTests
         var mockOptions = new Mock<IOptions<SyncOptions>>();
         mockOptions.Setup(x => x.Value).Returns(_syncOptions);
 
-        var service = new SyncBackgroundService(
-            _mockLogger.Object,
-            mockOptions.Object,
-            _mockServiceScopeFactory.Object);
-
         // Act
-        await service.StartAsync(CancellationToken.None);
-        await service.StopAsync(CancellationToken.None);
+        await _sut.StartAsync(CancellationToken.None);
+        await _sut.StopAsync(CancellationToken.None);
 
         // Assert
         _mockLogger.Verify(

@@ -5,12 +5,12 @@ namespace TodoApi.Services;
 /// <summary>
 /// Service for managing sync state and tracking last sync timestamps
 /// </summary>
-public class SyncStateService : ISyncStateService
+public class TodoListSyncStateService : ISyncStateService
 {
     private readonly TodoContext _context;
-    private readonly ILogger<SyncStateService> _logger;
+    private readonly ILogger<TodoListSyncStateService> _logger;
 
-    public SyncStateService(TodoContext context, ILogger<SyncStateService> logger)
+    public TodoListSyncStateService(TodoContext context, ILogger<TodoListSyncStateService> logger)
     {
         _context = context;
         _logger = logger;

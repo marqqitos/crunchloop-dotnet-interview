@@ -5,30 +5,33 @@ using TodoApi.Models;
 
 namespace TodoApi.Services;
 
-public class TodoSyncService : ISyncService
+public class TodoListSyncService : ISyncService
 {
     private readonly TodoContext _context;
     private readonly IExternalTodoApiClient _externalApiClient;
     private readonly IConflictResolver _conflictResolver;
     private readonly IRetryPolicyService _retryPolicyService;
-    private readonly IChangeDetectionService _changeDetectionService;
+    private readonly ITodoListService _todoListService;
+	private readonly ITodoItemService _todoItemService;
     private readonly ISyncStateService _syncStateService;
-    private readonly ILogger<TodoSyncService> _logger;
+    private readonly ILogger<TodoListSyncService> _logger;
 
-    public TodoSyncService(
+    public TodoListSyncService(
         TodoContext context,
         IExternalTodoApiClient externalApiClient,
         IConflictResolver conflictResolver,
         IRetryPolicyService retryPolicyService,
-        IChangeDetectionService changeDetectionService,
+        ITodoListService todoListService,
+		ITodoItemService todoItemService,
         ISyncStateService syncStateService,
-        ILogger<TodoSyncService> logger)
+        ILogger<TodoListSyncService> logger)
     {
         _context = context;
         _externalApiClient = externalApiClient;
         _conflictResolver = conflictResolver;
         _retryPolicyService = retryPolicyService;
-        _changeDetectionService = changeDetectionService;
+        _todoListService = todoListService;
+		_todoItemService = todoItemService;
         _syncStateService = syncStateService;
         _logger = logger;
     }
@@ -166,14 +169,16 @@ public class TodoSyncService : ISyncService
         try
         {
             // Check if there are any pending changes before starting sync
-            var hasPendingChanges = await _changeDetectionService.HasPendingChangesAsync();
-            var pendingCount = await _changeDetectionService.GetPendingChangesCountAsync();
+            var todoListPendingChangesCount = await _todoListService.GetPendingChangesCountAsync();
+            var todoItemPendingChangesCount = await _todoItemService.GetPendingChangesCountAsync();
+
+			var hasPendingChanges = todoListPendingChangesCount > 0 || todoItemPendingChangesCount > 0;
 
             // Also check for any unsynced TodoLists (no ExternalId)
             var hasUnsyncedTodoLists = await _context.TodoList.AnyAsync(tl => tl.ExternalId == null);
 
             _logger.LogInformation("Sync check: HasPendingChanges={HasPendingChanges}, PendingCount={PendingCount}, HasUnsynced={HasUnsynced}",
-                hasPendingChanges, pendingCount, hasUnsyncedTodoLists);
+                hasPendingChanges, todoListPendingChangesCount, hasUnsyncedTodoLists);
 
             // Phase 1: Push local changes to external API when there are pending changes OR unsynced lists
             if (hasPendingChanges || hasUnsyncedTodoLists)

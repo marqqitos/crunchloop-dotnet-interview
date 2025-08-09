@@ -26,11 +26,12 @@ builder
 // Register sync services
 builder.Services.AddScoped<IRetryPolicyService, RetryPolicyService>();
 builder.Services.AddScoped<IConflictResolver, ConflictResolver>();
-builder.Services.AddScoped<IChangeDetectionService, ChangeDetectionService>();
-builder.Services.AddScoped<ISyncStateService, SyncStateService>();
+builder.Services.AddScoped<ITodoListService, TodoListService>();
+builder.Services.AddScoped<ITodoItemService, TodoItemService>();
+builder.Services.AddScoped<ISyncStateService, TodoListSyncStateService>();
 builder.Services.AddScoped<ITodoItemService, TodoItemService>();
 builder.Services.AddScoped<ITodoListService, TodoListService>();
-builder.Services.AddScoped<ISyncService, TodoSyncService>();
+builder.Services.AddScoped<ISyncService, TodoListSyncService>();
 
 // Register background service
 var syncOptions = builder.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>();

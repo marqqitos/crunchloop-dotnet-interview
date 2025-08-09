@@ -28,7 +28,7 @@ public class TodoListBuilder
         return this;
     }
 
-    public TodoListBuilder WithLastSyncedAt(DateTime lastSyncedAt)
+    public TodoListBuilder WithLastSyncedAt(DateTime? lastSyncedAt)
     {
         _todoList.LastSyncedAt = lastSyncedAt;
         return this;

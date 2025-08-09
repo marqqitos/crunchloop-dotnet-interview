@@ -10,6 +10,9 @@ public interface ITodoItemService
     Task<TodoItemResponse?> UpdateTodoItemAsync(long todoListId, long id, UpdateTodoItem payload);
     Task<TodoItemResponse?> CreateTodoItemAsync(long todoListId, CreateTodoItem payload);
     Task<bool> DeleteTodoItemAsync(long todoListId, long id);
+	Task MarkAsPendingAsync(long todoItemId);
+    Task ClearPendingFlagAsync(long todoItemId);
+    Task<int> GetPendingChangesCountAsync();
 }
 
 

@@ -8,12 +8,13 @@ public class ConflictResolutionIntegrationTests : IAsyncDisposable
     private readonly TodoContext _context;
     private readonly Mock<IExternalTodoApiClient> _mockApiClient;
     private readonly Mock<IRetryPolicyService> _mockRetryPolicyService;
-    private readonly Mock<ILogger<TodoSyncService>> _mockSyncLogger;
+    private readonly Mock<ILogger<TodoListSyncService>> _mockSyncLogger;
     private readonly Mock<ILogger<ConflictResolver>> _mockConflictLogger;
-    private readonly Mock<IChangeDetectionService> _mockChangeDetectionService;
+    private readonly Mock<ITodoListService> _mockTodoListService;
+    private readonly Mock<ITodoItemService> _mockTodoItemService;
     private readonly Mock<ISyncStateService> _mockSyncStateService;
     private readonly ConflictResolver _conflictResolver;
-    private readonly TodoSyncService _syncService;
+    private readonly TodoListSyncService _syncService;
 
     public ConflictResolutionIntegrationTests()
     {
@@ -24,20 +25,29 @@ public class ConflictResolutionIntegrationTests : IAsyncDisposable
         _context = new TodoContext(options);
         _mockApiClient = new Mock<IExternalTodoApiClient>();
         _mockRetryPolicyService = new Mock<IRetryPolicyService>();
-        _mockSyncLogger = new Mock<ILogger<TodoSyncService>>();
+        _mockSyncLogger = new Mock<ILogger<TodoListSyncService>>();
         _mockConflictLogger = new Mock<ILogger<ConflictResolver>>();
-        _mockChangeDetectionService = new Mock<IChangeDetectionService>();
+        _mockTodoListService = new Mock<ITodoListService>();
+        _mockTodoItemService = new Mock<ITodoItemService>();
         _mockSyncStateService = new Mock<ISyncStateService>();
 
         _mockApiClient.Setup(x => x.SourceId).Returns("test-source");
-        
+
         // Setup retry policy mocks to return empty pipelines for tests
         _mockRetryPolicyService.Setup(x => x.GetHttpRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
         _mockRetryPolicyService.Setup(x => x.GetDatabaseRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
         _mockRetryPolicyService.Setup(x => x.GetSyncRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
 
         _conflictResolver = new ConflictResolver(_mockConflictLogger.Object);
-        _syncService = new TodoSyncService(_context, _mockApiClient.Object, _conflictResolver, _mockRetryPolicyService.Object, _mockChangeDetectionService.Object, _mockSyncStateService.Object, _mockSyncLogger.Object);
+        _syncService = new TodoListSyncService(
+			_context,
+			_mockApiClient.Object,
+			_conflictResolver,
+			_mockRetryPolicyService.Object,
+			_mockTodoListService.Object,
+			_mockTodoItemService.Object,
+			_mockSyncStateService.Object,
+			_mockSyncLogger.Object);
     }
 
     [Fact]

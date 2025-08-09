@@ -13,10 +13,11 @@ public class SyncIntegrationTests : IDisposable
 	private readonly Mock<IExternalTodoApiClient> _mockExternalClient;
 	private readonly Mock<IConflictResolver> _mockConflictResolver;
 	private readonly Mock<IRetryPolicyService> _mockRetryPolicyService;
-	private readonly Mock<ILogger<TodoSyncService>> _mockLogger;
-	private readonly Mock<IChangeDetectionService> _mockChangeDetectionService;
+	private readonly Mock<ILogger<TodoListSyncService>> _mockLogger;
 	private readonly Mock<ISyncStateService> _mockSyncStateService;
-	private readonly TodoSyncService _syncService;
+	private readonly Mock<ITodoListService> _mockTodoListService;
+	private readonly Mock<ITodoItemService> _mockTodoItemService;
+	private readonly TodoListSyncService _syncService;
 
 	public SyncIntegrationTests()
 	{
@@ -28,8 +29,9 @@ public class SyncIntegrationTests : IDisposable
 		_mockExternalClient = new Mock<IExternalTodoApiClient>();
 		_mockConflictResolver = new Mock<IConflictResolver>();
 		_mockRetryPolicyService = new Mock<IRetryPolicyService>();
-		_mockLogger = new Mock<ILogger<TodoSyncService>>();
-		_mockChangeDetectionService = new Mock<IChangeDetectionService>();
+		_mockLogger = new Mock<ILogger<TodoListSyncService>>();
+		_mockTodoListService = new Mock<ITodoListService>();
+		_mockTodoItemService = new Mock<ITodoItemService>();
 		_mockSyncStateService = new Mock<ISyncStateService>();
 		_mockExternalClient.Setup(x => x.SourceId).Returns("integration-test-source");
 
@@ -38,7 +40,14 @@ public class SyncIntegrationTests : IDisposable
 		_mockRetryPolicyService.Setup(x => x.GetDatabaseRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
 		_mockRetryPolicyService.Setup(x => x.GetSyncRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
 
-		_syncService = new TodoSyncService(_context, _mockExternalClient.Object, _mockConflictResolver.Object, _mockRetryPolicyService.Object, _mockChangeDetectionService.Object, _mockSyncStateService.Object, _mockLogger.Object);
+		_syncService = new TodoListSyncService(
+			_context,
+			_mockExternalClient.Object,
+			_mockConflictResolver.Object,
+			_mockRetryPolicyService.Object,
+			_mockTodoListService.Object,
+			_mockTodoItemService.Object,
+			_mockSyncStateService.Object, _mockLogger.Object);
 	}
 
 	[Fact]

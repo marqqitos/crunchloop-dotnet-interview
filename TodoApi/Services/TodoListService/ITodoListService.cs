@@ -9,6 +9,9 @@ public interface ITodoListService
     Task<TodoListResponse?> UpdateTodoListAsync(long id, UpdateTodoList payload);
     Task<TodoListResponse> CreateTodoListAsync(CreateTodoList payload);
     Task<bool> DeleteTodoListAsync(long id);
+	Task MarkAsPendingAsync(long todoListId);
+	Task ClearPendingFlagAsync(long todoListId);
+	Task<int> GetPendingChangesCountAsync();
 }
 
 
