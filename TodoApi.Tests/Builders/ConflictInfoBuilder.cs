@@ -18,7 +18,7 @@ public class ConflictInfoBuilder
         return this;
     }
 
-    public ConflictInfoBuilder WithLastSyncedAt(DateTime lastSyncedAt)
+    public ConflictInfoBuilder WithLastSyncedAt(DateTime? lastSyncedAt)
     {
         _conflictInfo.LastSyncedAt = lastSyncedAt;
         return this;
@@ -38,6 +38,24 @@ public class ConflictInfoBuilder
     public ConflictInfoBuilder WithModifiedFields(List<string> modifiedFields)
     {
         _conflictInfo.ModifiedFields = modifiedFields;
+        return this;
+    }
+
+    public ConflictInfoBuilder WithEntityType(string entityType)
+    {
+        _conflictInfo.EntityType = entityType;
+        return this;
+    }
+
+    public ConflictInfoBuilder WithEntityId(string entityId)
+    {
+        _conflictInfo.EntityId = entityId;
+        return this;
+    }
+
+    public ConflictInfoBuilder WithExternalEntityId(string externalEntityId)
+    {
+        _conflictInfo.ExternalEntityId = externalEntityId;
         return this;
     }
 

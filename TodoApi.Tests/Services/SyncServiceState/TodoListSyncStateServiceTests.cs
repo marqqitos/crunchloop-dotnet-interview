@@ -49,6 +49,7 @@ public class DeltaSyncTests
 
         // Assert
         Assert.NotNull(result);
+        Assert.NotNull(todoItem.LastSyncedAt);
         Assert.Equal(todoItem.LastSyncedAt.Value, result); // Should return the more recent timestamp
     }
 

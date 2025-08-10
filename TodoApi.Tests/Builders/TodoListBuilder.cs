@@ -16,7 +16,7 @@ public class TodoListBuilder
         return this;
     }
 
-    public TodoListBuilder WithExternalId(string externalId)
+    public TodoListBuilder WithExternalId(string? externalId)
     {
         _todoList.ExternalId = externalId;
         return this;
@@ -31,6 +31,12 @@ public class TodoListBuilder
     public TodoListBuilder WithLastSyncedAt(DateTime? lastSyncedAt)
     {
         _todoList.LastSyncedAt = lastSyncedAt;
+        return this;
+    }
+
+    public TodoListBuilder WithIsSyncPending(bool isSyncPending)
+    {
+        _todoList.IsSyncPending = isSyncPending;
         return this;
     }
 

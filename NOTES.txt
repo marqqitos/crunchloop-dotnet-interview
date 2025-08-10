@@ -121,3 +121,7 @@ Validates data before and after synchronization operations to detect corruption 
 - **Eventual Consistency**: 5-minute synchronization delays are acceptable for the business use case
 - **External Authority**: External API serves as the authoritative source for conflict resolution
 - **Unicode Support**: Both systems support international character sets for global user base
+
+
+
+//Change Exceptions catched with custom ones

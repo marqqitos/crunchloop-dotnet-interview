@@ -17,8 +17,8 @@ public class RetryIntegrationTests : IAsyncDisposable
     private readonly Mock<ILogger<TodoListSyncService>> _mockSyncLogger;
     private readonly Mock<ITodoListService> _mockTodoListService;
     private readonly Mock<ITodoItemService> _mockTodoItemService;
-    private readonly IRetryPolicyService _retryPolicyService;
     private readonly Mock<ISyncStateService> _mockSyncStateService;
+    private readonly IRetryPolicyService _retryPolicyService;
     private readonly TodoListSyncService _syncService;
 
     public RetryIntegrationTests()

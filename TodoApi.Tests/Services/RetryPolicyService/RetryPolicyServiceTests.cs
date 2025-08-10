@@ -39,6 +39,7 @@ public class RetryPolicyServiceTests
         // Act & Assert
         var result = await retryPolicy.ExecuteAsync(async cancellationToken =>
         {
+            await Task.Delay(1, cancellationToken); // Add await to make async meaningful
             callCount++;
             if (callCount == 1)
             {
@@ -61,6 +62,7 @@ public class RetryPolicyServiceTests
         // Act & Assert
         var result = await retryPolicy.ExecuteAsync(async cancellationToken =>
         {
+            await Task.Delay(1, cancellationToken); // Add await to make async meaningful
             callCount++;
             return new HttpResponseMessage(HttpStatusCode.BadRequest);
         });
@@ -79,6 +81,7 @@ public class RetryPolicyServiceTests
         // Act & Assert
         var result = await retryPolicy.ExecuteAsync(async cancellationToken =>
         {
+            await Task.Delay(1, cancellationToken); // Add await to make async meaningful
             callCount++;
 
             if (callCount <= 2)
@@ -105,6 +108,7 @@ public class RetryPolicyServiceTests
         // Act & Assert
         await retryPolicy.ExecuteAsync(async cancellationToken =>
         {
+            await Task.Delay(1, cancellationToken); // Add await to make async meaningful
             callCount++;
             if (callCount == 1)
             {
@@ -126,6 +130,7 @@ public class RetryPolicyServiceTests
         // Act & Assert
         await retryPolicy.ExecuteAsync(async cancellationToken =>
         {
+            await Task.Delay(1, cancellationToken); // Add await to make async meaningful
             callCount++;
             if (callCount == 1)
             {
@@ -149,6 +154,7 @@ public class RetryPolicyServiceTests
         {
             await retryPolicy.ExecuteAsync(async cancellationToken =>
             {
+                await Task.Delay(1, cancellationToken); // Add await to make async meaningful
                 callCount++;
                 throw new InvalidOperationException("Conflict detected during sync");
             });
