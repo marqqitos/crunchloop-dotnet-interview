@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Tests.Builders;
 using TodoApi.Services.ConflictResolver;
+using TodoApi.Services.ConflictResolver.Strategies;
+using TodoApi.Common;
 
 namespace TodoApi.Tests.Integration;
 
@@ -15,6 +17,8 @@ public class ConflictResolutionIntegrationTests : IAsyncDisposable
     private readonly Mock<ITodoListService> _mockTodoListService;
     private readonly Mock<ITodoItemService> _mockTodoItemService;
     private readonly Mock<ISyncStateService> _mockSyncStateService;
+    private readonly Mock<IConflictResolutionStrategyFactory<TodoList, ExternalTodoList>> _mockTodoListStrategyFactory;
+    private readonly Mock<IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem>> _mockTodoItemStrategyFactory;
     private readonly TodoListConflictResolver _todoListConflictResolver;
     private readonly TodoItemConflictResolver _todoItemConflictResolver;
     private readonly TodoListSyncService _syncService;
@@ -34,6 +38,8 @@ public class ConflictResolutionIntegrationTests : IAsyncDisposable
         _mockTodoListService = new Mock<ITodoListService>();
         _mockTodoItemService = new Mock<ITodoItemService>();
         _mockSyncStateService = new Mock<ISyncStateService>();
+        _mockTodoListStrategyFactory = new Mock<IConflictResolutionStrategyFactory<TodoList, ExternalTodoList>>();
+        _mockTodoItemStrategyFactory = new Mock<IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem>>();
 
         _mockApiClient.Setup(x => x.SourceId).Returns("test-source");
 
@@ -42,8 +48,18 @@ public class ConflictResolutionIntegrationTests : IAsyncDisposable
         _mockRetryPolicyService.Setup(x => x.GetDatabaseRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
         _mockRetryPolicyService.Setup(x => x.GetSyncRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
 
-        _todoListConflictResolver = new TodoListConflictResolver(_mockTodoListConflictLogger.Object);
-        _todoItemConflictResolver = new TodoItemConflictResolver(_mockTodoItemConflictLogger.Object);
+        _todoListConflictResolver = new TodoListConflictResolver(_mockTodoListConflictLogger.Object, _mockTodoListStrategyFactory.Object);
+        _todoItemConflictResolver = new TodoItemConflictResolver(_mockTodoItemConflictLogger.Object, _mockTodoItemStrategyFactory.Object);
+
+        // Setup strategy factories to return ExternalWins strategy by default
+        var externalWinsStrategy = new ExternalWinsStrategy<TodoList, ExternalTodoList>(_mockTodoListConflictLogger.Object);
+        var externalWinsItemStrategy = new ExternalWinsStrategy<TodoItem, ExternalTodoItem>(_mockTodoItemConflictLogger.Object);
+
+        _mockTodoListStrategyFactory.Setup(x => x.GetStrategy(It.IsAny<ConflictResolutionStrategy>()))
+            .Returns(externalWinsStrategy);
+        _mockTodoItemStrategyFactory.Setup(x => x.GetStrategy(It.IsAny<ConflictResolutionStrategy>()))
+            .Returns(externalWinsItemStrategy);
+
         _syncService = new TodoListSyncService(
 			_context,
 			_mockApiClient.Object,

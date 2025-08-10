@@ -28,6 +28,8 @@ builder
 
 // Register sync services
 builder.Services.AddScoped<IRetryPolicyService, RetryPolicyService>();
+builder.Services.AddScoped<IConflictResolutionStrategyFactory<TodoList, ExternalTodoList>, ConflictResolutionStrategyFactory<TodoList, ExternalTodoList>>();
+builder.Services.AddScoped<IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem>, ConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem>>();
 builder.Services.AddScoped<IConflictResolver<TodoList, ExternalTodoList>, TodoListConflictResolver>();
 builder.Services.AddScoped<IConflictResolver<TodoItem, ExternalTodoItem>, TodoItemConflictResolver>();
 builder.Services.AddScoped<ITodoListService, TodoListService>();

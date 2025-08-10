@@ -18,7 +18,7 @@ public enum ConflictResolutionStrategy
     /// <summary>
     /// Manual resolution required - throw exception or queue for review
     /// </summary>
-    Manual
+    ManualResolution
 }
 
 /// <summary>
@@ -28,6 +28,7 @@ public class ConflictInfo
 {
     public string EntityType { get; set; } = string.Empty;
     public string EntityId { get; set; } = string.Empty;
+    public string ExternalEntityId { get; set; } = string.Empty;
     public DateTime LocalLastModified { get; set; }
     public DateTime ExternalLastModified { get; set; }
     public DateTime? LastSyncedAt { get; set; }

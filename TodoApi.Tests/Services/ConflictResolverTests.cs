@@ -1,6 +1,9 @@
 using TodoApi.Common;
 using TodoApi.Tests.Builders;
 using TodoApi.Services.ConflictResolver;
+using Moq;
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace TodoApi.Tests.Services;
 
@@ -8,6 +11,10 @@ public class ConflictResolverTests
 {
     private readonly Mock<ILogger<TodoListConflictResolver>> _mockTodoListLogger;
     private readonly Mock<ILogger<TodoItemConflictResolver>> _mockTodoItemLogger;
+    private readonly Mock<IConflictResolutionStrategyFactory<TodoList, ExternalTodoList>> _mockTodoListStrategyFactory;
+    private readonly Mock<IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem>> _mockTodoItemStrategyFactory;
+    private readonly Mock<IConflictResolutionStrategy<TodoList, ExternalTodoList>> _mockTodoListStrategy;
+    private readonly Mock<IConflictResolutionStrategy<TodoItem, ExternalTodoItem>> _mockTodoItemStrategy;
     private readonly TodoListConflictResolver _todoListConflictResolver;
     private readonly TodoItemConflictResolver _todoItemConflictResolver;
 
@@ -15,8 +22,37 @@ public class ConflictResolverTests
     {
         _mockTodoListLogger = new Mock<ILogger<TodoListConflictResolver>>();
         _mockTodoItemLogger = new Mock<ILogger<TodoItemConflictResolver>>();
-        _todoListConflictResolver = new TodoListConflictResolver(_mockTodoListLogger.Object);
-        _todoItemConflictResolver = new TodoItemConflictResolver(_mockTodoItemLogger.Object);
+        _mockTodoListStrategyFactory = new Mock<IConflictResolutionStrategyFactory<TodoList, ExternalTodoList>>();
+        _mockTodoItemStrategyFactory = new Mock<IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem>>();
+        _mockTodoListStrategy = new Mock<IConflictResolutionStrategy<TodoList, ExternalTodoList>>();
+        _mockTodoItemStrategy = new Mock<IConflictResolutionStrategy<TodoItem, ExternalTodoItem>>();
+
+        _todoListConflictResolver = new TodoListConflictResolver(_mockTodoListLogger.Object, _mockTodoListStrategyFactory.Object);
+        _todoItemConflictResolver = new TodoItemConflictResolver(_mockTodoItemLogger.Object, _mockTodoItemStrategyFactory.Object);
+    }
+
+    private void SetupStrategyForTest(ConflictResolutionStrategy strategy, bool shouldApplyExternalChanges, string resolutionReason)
+    {
+        var mockStrategy = new Mock<IConflictResolutionStrategy<TodoList, ExternalTodoList>>();
+        mockStrategy.Setup(s => s.ShouldApplyExternalChanges(It.IsAny<TodoList>(), It.IsAny<ExternalTodoList>(), It.IsAny<ConflictInfo>()))
+            .Returns(shouldApplyExternalChanges);
+        mockStrategy.Setup(s => s.GetResolutionReason(It.IsAny<TodoList>(), It.IsAny<ExternalTodoList>(), It.IsAny<ConflictInfo>()))
+            .Returns(resolutionReason);
+
+        _mockTodoListStrategyFactory.Setup(f => f.GetStrategy(strategy))
+            .Returns(mockStrategy.Object);
+    }
+
+    private void SetupItemStrategyForTest(ConflictResolutionStrategy strategy, bool shouldApplyExternalChanges, string resolutionReason)
+    {
+        var mockStrategy = new Mock<IConflictResolutionStrategy<TodoItem, ExternalTodoItem>>();
+        mockStrategy.Setup(s => s.ShouldApplyExternalChanges(It.IsAny<TodoItem>(), It.IsAny<ExternalTodoItem>(), It.IsAny<ConflictInfo>()))
+            .Returns(shouldApplyExternalChanges);
+        mockStrategy.Setup(s => s.GetResolutionReason(It.IsAny<TodoItem>(), It.IsAny<ExternalTodoItem>(), It.IsAny<ConflictInfo>()))
+            .Returns(resolutionReason);
+
+        _mockTodoItemStrategyFactory.Setup(f => f.GetStrategy(strategy))
+            .Returns(mockStrategy.Object);
     }
 
     [Fact]
@@ -51,6 +87,8 @@ public class ConflictResolverTests
     public void ResolveTodoListConflict_WithActualConflict_ExternalWins_ReturnsConflictInfo()
     {
         // Arrange
+        SetupStrategyForTest(ConflictResolutionStrategy.ExternalWins, true, "External API changes take precedence");
+
         var baseTime = DateTime.UtcNow.AddHours(-3);
         var localTodoList = TodoListBuilder.Create()
             .WithId(1)
@@ -82,6 +120,8 @@ public class ConflictResolverTests
     public void ResolveTodoListConflict_WithConflict_LocalWins_ReturnsCorrectStrategy()
     {
         // Arrange
+        SetupStrategyForTest(ConflictResolutionStrategy.LocalWins, false, "Local changes take precedence");
+
         var baseTime = DateTime.UtcNow.AddHours(-3);
         var localTodoList = TodoListBuilder.Create()
             .WithId(1)
@@ -110,6 +150,8 @@ public class ConflictResolverTests
     public void ResolveTodoListConflict_WithConflict_ManualResolution_ThrowsException()
     {
         // Arrange
+        SetupStrategyForTest(ConflictResolutionStrategy.ManualResolution, false, "Manual conflict resolution required");
+
         var baseTime = DateTime.UtcNow.AddHours(-3);
         var localTodoList = TodoListBuilder.Create()
             .WithId(1)
@@ -126,7 +168,7 @@ public class ConflictResolverTests
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            _todoListConflictResolver.ResolveConflict(localTodoList, externalTodoList, ConflictResolutionStrategy.Manual));
+            _todoListConflictResolver.ResolveConflict(localTodoList, externalTodoList, ConflictResolutionStrategy.ManualResolution));
 
         Assert.Contains("Manual conflict resolution required", exception.Message);
     }
@@ -135,6 +177,8 @@ public class ConflictResolverTests
     public void ResolveTodoItemConflict_WithConflict_DetectsAllFields()
     {
         // Arrange
+        SetupItemStrategyForTest(ConflictResolutionStrategy.ExternalWins, true, "External wins");
+
         var baseTime = DateTime.UtcNow.AddHours(-3);
         var localTodoItem = TodoItemBuilder.Create()
             .WithId(1)
@@ -165,6 +209,8 @@ public class ConflictResolverTests
     public void ApplyResolution_ExternalWins_WithConflict_AppliesExternalChanges()
     {
         // Arrange
+        SetupStrategyForTest(ConflictResolutionStrategy.ExternalWins, true, "Test conflict resolution");
+
         var localTodoList = TodoListBuilder.Create()
             .WithId(1)
             .WithName("Local Name")
@@ -199,6 +245,8 @@ public class ConflictResolverTests
     public void ApplyResolution_LocalWins_WithConflict_KeepsLocalChanges()
     {
         // Arrange
+        SetupStrategyForTest(ConflictResolutionStrategy.LocalWins, false, "Local wins strategy");
+
         var originalName = "Local Name";
         var originalModified = DateTime.UtcNow.AddHours(-1);
 
@@ -235,6 +283,8 @@ public class ConflictResolverTests
     public void ApplyResolution_TodoItem_ExternalWins_AppliesAllFields()
     {
         // Arrange
+        SetupItemStrategyForTest(ConflictResolutionStrategy.ExternalWins, true, "External wins");
+
         var localTodoItem = TodoItemBuilder.Create()
             .WithId(1)
             .WithDescription("Local Description")
@@ -271,6 +321,8 @@ public class ConflictResolverTests
     public void ApplyResolution_NoConflict_ExternalNewer_AppliesChanges()
     {
         // Arrange
+        SetupStrategyForTest(ConflictResolutionStrategy.ExternalWins, true, "External is newer");
+
         var localTodoList = TodoListBuilder.Create()
             .WithId(1)
             .WithName("Local Name")
@@ -303,6 +355,8 @@ public class ConflictResolverTests
     public void ApplyResolution_NoConflict_LocalNewer_OnlyUpdatesSyncTimestamp()
     {
         // Arrange
+        SetupStrategyForTest(ConflictResolutionStrategy.LocalWins, false, "Local is newer");
+
         var originalName = "Local Name";
         var localChangeLastTimeModified = DateTime.UtcNow.AddMinutes(-30);
 

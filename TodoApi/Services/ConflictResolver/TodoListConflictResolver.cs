@@ -1,6 +1,7 @@
 using TodoApi.Common;
 using TodoApi.Dtos.External;
 using TodoApi.Models;
+using Microsoft.Extensions.Logging;
 
 namespace TodoApi.Services.ConflictResolver;
 
@@ -9,7 +10,8 @@ namespace TodoApi.Services.ConflictResolver;
 /// </summary>
 public class TodoListConflictResolver : ConflictResolverBase<TodoList, ExternalTodoList>
 {
-    public TodoListConflictResolver(ILogger<TodoListConflictResolver> logger) : base(logger)
+    public TodoListConflictResolver(ILogger<TodoListConflictResolver> logger, IConflictResolutionStrategyFactory<TodoList, ExternalTodoList> strategyFactory)
+        : base(logger, strategyFactory)
     {
     }
 
@@ -19,6 +21,7 @@ public class TodoListConflictResolver : ConflictResolverBase<TodoList, ExternalT
         {
             EntityType = nameof(TodoList),
             EntityId = localEntity.Id.ToString(),
+            ExternalEntityId = externalEntity.Id.ToString(),
             LocalLastModified = localEntity.LastModified,
             ExternalLastModified = externalEntity.UpdatedAt,
             LastSyncedAt = localEntity.LastSyncedAt,
@@ -62,5 +65,10 @@ public class TodoListConflictResolver : ConflictResolverBase<TodoList, ExternalT
     protected override void UpdateSyncTimestamp(TodoList localEntity)
     {
         localEntity.LastSyncedAt = DateTime.UtcNow;
+    }
+
+    protected override void UpdateLastModified(TodoList localEntity, DateTime newLastModified)
+    {
+        localEntity.LastModified = newLastModified;
     }
 }

@@ -1,6 +1,7 @@
 using TodoApi.Common;
 using TodoApi.Dtos.External;
 using TodoApi.Models;
+using Microsoft.Extensions.Logging;
 
 namespace TodoApi.Services.ConflictResolver;
 
@@ -9,7 +10,8 @@ namespace TodoApi.Services.ConflictResolver;
 /// </summary>
 public class TodoItemConflictResolver : ConflictResolverBase<TodoItem, ExternalTodoItem>
 {
-    public TodoItemConflictResolver(ILogger<TodoItemConflictResolver> logger) : base(logger)
+    public TodoItemConflictResolver(ILogger<TodoItemConflictResolver> logger, IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem> strategyFactory)
+        : base(logger, strategyFactory)
     {
     }
 
@@ -19,6 +21,7 @@ public class TodoItemConflictResolver : ConflictResolverBase<TodoItem, ExternalT
         {
             EntityType = nameof(TodoItem),
             EntityId = localEntity.Id.ToString(),
+            ExternalEntityId = externalEntity.Id.ToString(),
             LocalLastModified = localEntity.LastModified,
             ExternalLastModified = externalEntity.UpdatedAt,
             LastSyncedAt = localEntity.LastSyncedAt,
@@ -45,6 +48,8 @@ public class TodoItemConflictResolver : ConflictResolverBase<TodoItem, ExternalT
 
 	protected override void UpdateSyncTimestamp(TodoItem localEntity) => localEntity.LastSyncedAt = DateTime.UtcNow;
 
+	protected override void UpdateLastModified(TodoItem localEntity, DateTime newLastModified) => localEntity.LastModified = newLastModified;
+
     protected override void ApplyExternalChanges(TodoItem localEntity, ExternalTodoItem externalEntity)
     {
         localEntity.Description = externalEntity.Description;
@@ -52,5 +57,4 @@ public class TodoItemConflictResolver : ConflictResolverBase<TodoItem, ExternalT
         localEntity.LastModified = externalEntity.UpdatedAt;
         localEntity.LastSyncedAt = DateTime.UtcNow;
     }
-
 }

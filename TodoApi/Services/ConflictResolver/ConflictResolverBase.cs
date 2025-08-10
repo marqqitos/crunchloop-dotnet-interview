@@ -8,12 +8,16 @@ namespace TodoApi.Services.ConflictResolver;
 /// <typeparam name="TLocal">The local entity type</typeparam>
 /// <typeparam name="TExternal">The external entity type</typeparam>
 public abstract class ConflictResolverBase<TLocal, TExternal> : IConflictResolver<TLocal, TExternal>
+    where TLocal : class
+    where TExternal : class
 {
     protected readonly ILogger _logger;
+    private readonly IConflictResolutionStrategyFactory<TLocal, TExternal> _strategyFactory;
 
-    protected ConflictResolverBase(ILogger logger)
+    protected ConflictResolverBase(ILogger logger, IConflictResolutionStrategyFactory<TLocal, TExternal> strategyFactory)
     {
         _logger = logger;
+        _strategyFactory = strategyFactory;
     }
 
     public ConflictInfo ResolveConflict(
@@ -29,50 +33,73 @@ public abstract class ConflictResolverBase<TLocal, TExternal> : IConflictResolve
         // Detect if there's a conflict
         if (conflictInfo.HasConflict)
         {
-            resolutionReason = ResolveConflictStrategy(localEntity, externalEntity, conflictInfo, strategy);
+            var strategyImpl = _strategyFactory.GetStrategy(strategy);
+            resolutionReason = strategyImpl.GetResolutionReason(localEntity, externalEntity, conflictInfo);
+
+			// Manual resolution cannot be handled automatically - throw exception
+            if (strategy == ConflictResolutionStrategy.ManualResolution)
+            {
+                throw new InvalidOperationException(resolutionReason);
+            }
         }
         else
-		{
-			// No conflict - determine which is newer
-			resolutionReason = ExternalIsNewer(localEntity, externalEntity)
-				? "External entity is newer - applying external changes."
-				: "Local entity is newer or same - no changes needed.";
-		}
+        {
+            // No conflict - determine which is newer
+            resolutionReason = ExternalIsNewer(localEntity, externalEntity)
+                ? "External entity is newer - applying external changes."
+                : "Local entity is newer or same - no changes needed.";
+        }
 
-		conflictInfo.ResolutionReason = resolutionReason;
+        conflictInfo.ResolutionReason = resolutionReason;
+        // Ensure the Resolution property is set to the strategy used
+        conflictInfo.Resolution = strategy;
         return conflictInfo;
     }
 
-	public void ApplyResolution(TLocal localEntity, TExternal externalEntity, ConflictInfo conflictInfo)
+    public void ApplyResolution(TLocal localEntity, TExternal externalEntity, ConflictInfo conflictInfo)
     {
-        if (conflictInfo.Resolution == ConflictResolutionStrategy.LocalWins && conflictInfo.HasConflict)
+        // If there's no conflict, we don't need to use the strategy factory
+        if (!conflictInfo.HasConflict)
         {
-            // Local wins - don't apply external changes
-            _logger.LogInformation("Conflict resolved: Local wins for {EntityType} {EntityId} - keeping local changes",
-                conflictInfo.EntityType, conflictInfo.EntityId);
-            UpdateSyncTimestamp(localEntity);
-            return;
-        }
-
-        // Apply external changes (default for ExternalWins or no conflict with external newer)
-        if (conflictInfo.HasConflict || ExternalIsNewer(localEntity, externalEntity))
-        {
-            ApplyExternalChanges(localEntity, externalEntity);
-
-            if (conflictInfo.HasConflict)
+            // No conflict - determine which is newer
+            if (ExternalIsNewer(localEntity, externalEntity))
             {
-                _logger.LogInformation("Conflict resolved: External wins for {EntityType} {EntityId} - applied external changes. Reason: {Reason}",
-                    conflictInfo.EntityType, conflictInfo.EntityId, conflictInfo.ResolutionReason);
+                // External is newer, apply changes
+                ApplyExternalChanges(localEntity, externalEntity);
+                UpdateLastModified(localEntity, GetExternalLastModified(externalEntity));
+                UpdateSyncTimestamp(localEntity);
+
+                _logger.LogDebug("No conflict: Applied external changes to {EntityType} {EntityId}",
+                    conflictInfo.EntityType, GetEntityId(localEntity));
             }
             else
             {
-                _logger.LogDebug("No conflict: Applied external changes to {EntityType} {EntityId}",
-                    conflictInfo.EntityType, conflictInfo.EntityId);
+                // Local is newer or same, just update sync timestamp
+                UpdateSyncTimestamp(localEntity);
+
+                _logger.LogDebug("No conflict: Local entity is newer or same for {EntityType} {EntityId} - only updating sync timestamp",
+                    conflictInfo.EntityType, GetEntityId(localEntity));
             }
+            return;
+        }
+
+        // There is a conflict, use the strategy factory
+        var strategyImpl = _strategyFactory.GetStrategy(conflictInfo.Resolution);
+
+        if (strategyImpl.ShouldApplyExternalChanges(localEntity, externalEntity, conflictInfo))
+        {
+            ApplyExternalChanges(localEntity, externalEntity);
+            UpdateLastModified(localEntity, GetExternalLastModified(externalEntity));
+            UpdateSyncTimestamp(localEntity);
+
+            _logger.LogInformation("Conflict resolved: External wins for {EntityType} {EntityId} - applied external changes. Reason: {Reason}",
+                conflictInfo.EntityType, GetEntityId(localEntity), conflictInfo.ResolutionReason);
         }
         else
         {
-            // Just update sync timestamp
+            _logger.LogInformation("Conflict resolved: Local wins for {EntityType} {EntityId} - keeping local changes",
+                conflictInfo.EntityType, GetEntityId(localEntity));
+
             UpdateSyncTimestamp(localEntity);
         }
     }
@@ -118,48 +145,10 @@ public abstract class ConflictResolverBase<TLocal, TExternal> : IConflictResolve
     protected abstract void UpdateSyncTimestamp(TLocal localEntity);
 
     /// <summary>
-    /// Resolves conflict based on the specified strategy
+    /// Updates the last modified timestamp on the local entity
     /// </summary>
-    private string ResolveConflictStrategy(TLocal localEntity, TExternal externalEntity, ConflictInfo conflictInfo, ConflictResolutionStrategy strategy)
-    {
-        return strategy switch
-        {
-            ConflictResolutionStrategy.ExternalWins => HandleExternalWinsStrategy(localEntity, externalEntity, conflictInfo),
-            ConflictResolutionStrategy.LocalWins => HandleLocalWinsStrategy(localEntity, externalEntity),
-            ConflictResolutionStrategy.Manual => HandleManualStrategy(localEntity, externalEntity, conflictInfo),
-            _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, "Unknown conflict resolution strategy")
-        };
-    }
+    protected abstract void UpdateLastModified(TLocal localEntity, DateTime newLastModified);
 
-    private string HandleExternalWinsStrategy(TLocal localEntity, TExternal externalEntity, ConflictInfo conflictInfo)
-    {
-        var resolutionReason = $"External API changes take precedence. Local changes made at {GetLocalLastModified(localEntity):yyyy-MM-dd HH:mm:ss} " +
-                              $"will be overwritten by external changes made at {GetExternalLastModified(externalEntity):yyyy-MM-dd HH:mm:ss}.";
-
-        _logger.LogWarning("CONFLICT DETECTED: {EntityType} {LocalId} (External: {ExternalId}) - " +
-                          "Both local and external modified since last sync. Resolution: External Wins. " +
-                          "Fields in conflict: {Fields}",
-                          conflictInfo.EntityType, GetEntityId(localEntity), GetExternalEntityId(externalEntity),
-                          string.Join(", ", conflictInfo.ModifiedFields));
-
-        return resolutionReason;
-    }
-
-    private string HandleLocalWinsStrategy(TLocal localEntity, TExternal externalEntity)
-    {
-        return $"Local changes take precedence. External changes made at {GetExternalLastModified(externalEntity):yyyy-MM-dd HH:mm:ss} " +
-               $"will be ignored in favor of local changes made at {GetLocalLastModified(localEntity):yyyy-MM-dd HH:mm:ss}.";
-    }
-
-    private string HandleManualStrategy(TLocal localEntity, TExternal externalEntity, ConflictInfo conflictInfo)
-    {
-        throw new InvalidOperationException(
-            $"Manual conflict resolution required for {conflictInfo.EntityType} {GetEntityId(localEntity)}. " +
-            $"Local: {GetLocalLastModified(localEntity):yyyy-MM-dd HH:mm:ss}, " +
-            $"External: {GetExternalLastModified(externalEntity):yyyy-MM-dd HH:mm:ss}, " +
-            $"Last Sync: {conflictInfo.LastSyncedAt:yyyy-MM-dd HH:mm:ss}");
-    }
-
-	private bool ExternalIsNewer(TLocal localEntity, TExternal externalEntity)
-		=> GetExternalLastModified(externalEntity) > GetLocalLastModified(localEntity);
+    private bool ExternalIsNewer(TLocal localEntity, TExternal externalEntity)
+        => GetExternalLastModified(externalEntity) > GetLocalLastModified(localEntity);
 }
