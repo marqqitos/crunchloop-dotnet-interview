@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Dtos;
+using TodoApi.Services.TodoListService;
 
-namespace TodoApi.Tests.Services;
+namespace TodoApi.Tests.Services.TodoListServiceTests;
 
 public class TodoListServiceTests
 {

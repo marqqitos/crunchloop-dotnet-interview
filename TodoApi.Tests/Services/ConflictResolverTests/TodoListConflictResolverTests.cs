@@ -1,14 +1,14 @@
 using TodoApi.Common;
 using TodoApi.Tests.Builders;
 using TodoApi.Services.ConflictResolutionStrategies;
+using TodoApi.Services.ConflictResolver;
+using TodoApi.Services.Factories.ConflictResolutionFactory;
 
-namespace TodoApi.Tests.Services;
+namespace TodoApi.Tests.Services.ConflictResolverTests;
 
 public class TodoListConflictResolverTests
 {
-    private readonly Mock<ILogger<TodoListConflictResolver>> _mockTodoListLogger;
-    private readonly Mock<ILogger<TodoItemConflictResolver>> _mockTodoItemLogger;
-    private readonly Mock<IConflictResolutionStrategyFactory<TodoList, ExternalTodoList>> _mockTodoListStrategyFactory;
+    private readonly Mock<ILogger<TodoListConflictResolver>> _mockTodoListLogger;    private readonly Mock<IConflictResolutionStrategyFactory<TodoList, ExternalTodoList>> _mockTodoListStrategyFactory;
     private readonly Mock<IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem>> _mockTodoItemStrategyFactory;
     private readonly Mock<IConflictResolutionStrategy<TodoList, ExternalTodoList>> _mockTodoListStrategy;
     private readonly Mock<IConflictResolutionStrategy<TodoItem, ExternalTodoItem>> _mockTodoItemStrategy;
@@ -17,7 +17,6 @@ public class TodoListConflictResolverTests
     public TodoListConflictResolverTests()
     {
         _mockTodoListLogger = new Mock<ILogger<TodoListConflictResolver>>();
-        _mockTodoItemLogger = new Mock<ILogger<TodoItemConflictResolver>>();
         _mockTodoListStrategyFactory = new Mock<IConflictResolutionStrategyFactory<TodoList, ExternalTodoList>>();
         _mockTodoItemStrategyFactory = new Mock<IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem>>();
         _mockTodoListStrategy = new Mock<IConflictResolutionStrategy<TodoList, ExternalTodoList>>();

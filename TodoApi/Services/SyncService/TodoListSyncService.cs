@@ -2,8 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using TodoApi.Common;
 using TodoApi.Dtos.External;
 using TodoApi.Models;
+using TodoApi.Services.ConflictResolver;
+using TodoApi.Services.ExternalTodoApiClient;
+using TodoApi.Services.RetryPolicyService;
+using TodoApi.Services.SyncStateService;
+using TodoApi.Services.TodoItemService;
+using TodoApi.Services.TodoListService;
 
-namespace TodoApi.Services;
+namespace TodoApi.Services.SyncService;
 
 public class TodoListSyncService : ISyncService
 {

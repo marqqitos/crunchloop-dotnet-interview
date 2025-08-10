@@ -1,8 +1,9 @@
 using Microsoft.Extensions.Options;
 using System.Net;
 using TodoApi.Configuration;
+using TodoApi.Services.RetryPolicyService;
 
-namespace TodoApi.Tests.Services;
+namespace TodoApi.Tests.Services.RetryPolicyServiceTests;
 
 public class RetryPolicyServiceTests
 {

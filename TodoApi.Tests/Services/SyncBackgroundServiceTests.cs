@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Options;
 using TodoApi.Configuration;
-using TodoApi.Services;
+using TodoApi.Services.SyncService;
+using TodoApi.Services.TodoItemService;
+using TodoApi.Services.TodoListService;
 
 namespace TodoApi.Tests.Services;
 

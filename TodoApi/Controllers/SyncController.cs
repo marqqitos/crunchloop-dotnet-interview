@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using TodoApi.Services;
+using TodoApi.Services.SyncService;
 
 namespace TodoApi.Controllers;
 
@@ -25,9 +26,9 @@ public class SyncController : ControllerBase
         try
         {
             _logger.LogInformation("Manual outbound sync triggered via API");
-            
+
             await _syncService.SyncTodoListsToExternalAsync();
-            
+
             return Ok(new { message = "Outbound TodoLists sync completed successfully" });
         }
         catch (Exception ex)
@@ -46,9 +47,9 @@ public class SyncController : ControllerBase
         try
         {
             _logger.LogInformation("Manual inbound sync triggered via API");
-            
+
             await _syncService.SyncTodoListsFromExternalAsync();
-            
+
             return Ok(new { message = "Inbound TodoLists sync completed successfully" });
         }
         catch (Exception ex)
@@ -67,9 +68,9 @@ public class SyncController : ControllerBase
         try
         {
             _logger.LogInformation("Manual bidirectional sync triggered via API");
-            
+
             await _syncService.PerformFullSyncAsync();
-            
+
             return Ok(new { message = "Bidirectional TodoLists sync completed successfully" });
         }
         catch (Exception ex)

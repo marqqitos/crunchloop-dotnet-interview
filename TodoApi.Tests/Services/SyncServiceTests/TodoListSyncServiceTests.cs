@@ -1,8 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Common;
+using TodoApi.Services.ConflictResolver;
+using TodoApi.Services.ExternalTodoApiClient;
+using TodoApi.Services.RetryPolicyService;
+using TodoApi.Services.SyncService;
+using TodoApi.Services.SyncStateService;
+using TodoApi.Services.TodoItemService;
+using TodoApi.Services.TodoListService;
 using TodoApi.Tests.Builders;
 
-namespace TodoApi.Tests.Services;
+namespace TodoApi.Tests.Services.SyncServiceTests;
 
 /// <summary>
 /// Integration tests that test the full sync flow with real database operations

@@ -5,7 +5,7 @@ using Polly.CircuitBreaker;
 using System.Net;
 using TodoApi.Configuration;
 
-namespace TodoApi.Services;
+namespace TodoApi.Services.RetryPolicyService;
 
 /// <summary>
 /// Implementation of retry policy service using Polly

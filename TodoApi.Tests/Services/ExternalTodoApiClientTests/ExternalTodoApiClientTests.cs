@@ -4,8 +4,10 @@ using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Moq.Protected;
 using TodoApi.Configuration;
+using TodoApi.Services.ExternalTodoApiClient;
+using TodoApi.Services.RetryPolicyService;
 
-namespace TodoApi.Tests.Services;
+namespace TodoApi.Tests.Services.ExternalTodoApiClientTests;
 
 public class ExternalTodoApiClientTests : IDisposable
 {

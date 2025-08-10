@@ -1,6 +1,7 @@
 using TodoApi.Common;
+using TodoApi.Services.Factories.ConflictResolutionFactory;
 
-namespace TodoApi.Services.ConflictResolutionStrategies;
+namespace TodoApi.Services.ConflictResolver;
 
 /// <summary>
 /// Abstract base class providing common conflict resolution functionality

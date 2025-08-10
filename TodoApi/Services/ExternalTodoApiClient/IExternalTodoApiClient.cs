@@ -1,6 +1,6 @@
 using TodoApi.Dtos.External;
 
-namespace TodoApi.Services;
+namespace TodoApi.Services.ExternalTodoApiClient;
 
 public interface IExternalTodoApiClient
 {
@@ -8,17 +8,17 @@ public interface IExternalTodoApiClient
     /// Source ID used to identify this local system in external API
     /// </summary>
     string SourceId { get; }
-    
+
     /// <summary>
     /// Get all TodoLists from external API
     /// </summary>
     Task<List<ExternalTodoList>> GetTodoListsAsync();
-    
+
     /// <summary>
     /// Create a new TodoList in external API
     /// </summary>
     Task<ExternalTodoList> CreateTodoListAsync(CreateExternalTodoList createDto);
-    
+
     /// <summary>
     /// Update an existing TodoList in external API
     /// </summary>
@@ -28,12 +28,12 @@ public interface IExternalTodoApiClient
     /// Update a TodoItem in external API
     /// </summary>
     Task<ExternalTodoItem> UpdateTodoItemAsync(string todoListId, string itemId, UpdateExternalTodoItem updateDto);
-    
+
     /// <summary>
     /// Delete a TodoList in external API
     /// </summary>
     Task DeleteTodoListAsync(string id);
-    
+
     /// <summary>
     /// Delete a TodoItem in external API
     /// </summary>

@@ -2,9 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Controllers;
 using TodoApi.Dtos;
+using TodoApi.Services.TodoListService;
 using TodoApi.Tests.Builders;
 
-namespace TodoApi.Tests;
+namespace TodoApi.Tests.Integration;
 
 #nullable disable
 public class TodoListsControllerTests

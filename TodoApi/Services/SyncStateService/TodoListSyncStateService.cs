@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace TodoApi.Services;
+namespace TodoApi.Services.SyncStateService;
 
 /// <summary>
 /// Service for managing sync state and tracking last sync timestamps

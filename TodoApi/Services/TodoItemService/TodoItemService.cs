@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TodoApi.Dtos;
 using TodoApi.Models;
 
-namespace TodoApi.Services;
+namespace TodoApi.Services.TodoItemService;
 
 public class TodoItemService : ITodoItemService
 {

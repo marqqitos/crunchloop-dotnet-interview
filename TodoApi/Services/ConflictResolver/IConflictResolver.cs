@@ -1,6 +1,6 @@
 using TodoApi.Common;
 
-namespace TodoApi.Services;
+namespace TodoApi.Services.ConflictResolver;
 
 /// <summary>
 /// Generic service for resolving synchronization conflicts between local and external entities

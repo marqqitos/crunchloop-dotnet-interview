@@ -1,6 +1,6 @@
 using Polly;
 
-namespace TodoApi.Services;
+namespace TodoApi.Services.RetryPolicyService;
 
 /// <summary>
 /// Service for creating and managing retry policies
@@ -11,12 +11,12 @@ public interface IRetryPolicyService
     /// Get retry policy for HTTP operations
     /// </summary>
     ResiliencePipeline GetHttpRetryPolicy();
-    
+
     /// <summary>
     /// Get retry policy for database operations
     /// </summary>
     ResiliencePipeline GetDatabaseRetryPolicy();
-    
+
     /// <summary>
     /// Get retry policy for sync operations
     /// </summary>

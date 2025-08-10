@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using TodoApi.Services.SyncStateService;
 using TodoApi.Tests.Builders;
 
-namespace TodoApi.Tests.Services;
+namespace TodoApi.Tests.Services.SyncServiceStateTests;
 
 public class DeltaSyncTests
 {

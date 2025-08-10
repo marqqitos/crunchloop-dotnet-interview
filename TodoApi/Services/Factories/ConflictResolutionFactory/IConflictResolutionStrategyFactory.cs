@@ -1,6 +1,7 @@
 using TodoApi.Common;
+using TodoApi.Services.ConflictResolutionStrategies;
 
-namespace TodoApi.Services.ConflictResolutionStrategies;
+namespace TodoApi.Services.Factories.ConflictResolutionFactory;
 
 /// <summary>
 /// Factory for creating conflict resolution strategies

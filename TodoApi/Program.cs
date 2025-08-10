@@ -1,9 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Configuration;
-using TodoApi.Services;
-using TodoApi.Services.ConflictResolutionStrategies;
 using TodoApi.Dtos.External;
 using TodoApi.Models;
+using TodoApi.Services.ConflictResolver;
+using TodoApi.Services.Factories.ConflictResolutionFactory;
+using TodoApi.Services.RetryPolicyService;
+using TodoApi.Services.SyncStateService;
+using TodoApi.Services.SyncService;
+using TodoApi.Services.TodoItemService;
+using TodoApi.Services.TodoListService;
+using TodoApi.Services;
+using TodoApi.Services.ExternalTodoApiClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
