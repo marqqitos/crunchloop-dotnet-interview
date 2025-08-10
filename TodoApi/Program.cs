@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Configuration;
 using TodoApi.Services;
-using TodoApi.Services.ConflictResolver;
+using TodoApi.Services.ConflictResolutionStrategies;
 using TodoApi.Dtos.External;
 using TodoApi.Models;
 

@@ -1,6 +1,6 @@
 using TodoApi.Common;
 
-namespace TodoApi.Services.ConflictResolver;
+namespace TodoApi.Services.ConflictResolutionStrategies;
 
 /// <summary>
 /// Strategy interface for resolving conflicts between local and external entities

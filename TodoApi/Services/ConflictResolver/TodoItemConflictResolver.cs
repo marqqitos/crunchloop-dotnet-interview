@@ -3,7 +3,7 @@ using TodoApi.Dtos.External;
 using TodoApi.Models;
 using Microsoft.Extensions.Logging;
 
-namespace TodoApi.Services.ConflictResolver;
+namespace TodoApi.Services.ConflictResolutionStrategies;
 
 /// <summary>
 /// Conflict resolver specifically for TodoItem entities

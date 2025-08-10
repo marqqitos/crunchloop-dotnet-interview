@@ -1,7 +1,6 @@
 using TodoApi.Common;
-using Microsoft.Extensions.Logging;
 
-namespace TodoApi.Services.ConflictResolver.Strategies;
+namespace TodoApi.Services.ConflictResolutionStrategies;
 
 /// <summary>
 /// Strategy that requires manual resolution of conflicts

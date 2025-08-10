@@ -1,8 +1,7 @@
 using TodoApi.Common;
-using Microsoft.Extensions.Logging;
-using TodoApi.Services.ConflictResolver.Strategies;
+using TodoApi.Services.ConflictResolutionStrategies;
 
-namespace TodoApi.Services.ConflictResolver;
+namespace TodoApi.Services.ConflictResolutionStrategies;
 
 /// <summary>
 /// Factory implementation for creating conflict resolution strategies

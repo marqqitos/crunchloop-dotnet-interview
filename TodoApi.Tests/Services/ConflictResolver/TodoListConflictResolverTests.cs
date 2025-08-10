@@ -1,6 +1,6 @@
 using TodoApi.Common;
 using TodoApi.Tests.Builders;
-using TodoApi.Services.ConflictResolver;
+using TodoApi.Services.ConflictResolutionStrategies;
 
 namespace TodoApi.Tests.Services;
 
