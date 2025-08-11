@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using TodoApi.Configuration;
+using TodoApi.Services.ExternalTodoApiClient;
 using TodoApi.Services.SyncService;
 using TodoApi.Services.TodoItemService;
 using TodoApi.Services.TodoListService;
@@ -12,6 +13,7 @@ public class SyncBackgroundServiceTests
     private readonly Mock<ISyncService> _mockSyncService;
 	private readonly Mock<ITodoListService> _mockTodoListService;
 	private readonly Mock<ITodoItemService> _mockTodoItemService;
+	private readonly Mock<IExternalTodoApiClient> _mockExternalApiClient;
     private readonly SyncOptions _syncOptions;
 
 	private SyncBackgroundService _sut;
@@ -22,6 +24,7 @@ public class SyncBackgroundServiceTests
         _mockLogger = new Mock<ILogger<SyncBackgroundService>>();
         _mockTodoListService = new Mock<ITodoListService>();
         _mockTodoItemService = new Mock<ITodoItemService>();
+		_mockExternalApiClient = new Mock<IExternalTodoApiClient>();
 
         _syncOptions = new SyncOptions
         {
@@ -36,7 +39,8 @@ public class SyncBackgroundServiceTests
 			_mockTodoListService.Object,
 			_mockTodoItemService.Object,
 			_mockLogger.Object,
-			new OptionsWrapper<SyncOptions>(_syncOptions));
+			new OptionsWrapper<SyncOptions>(_syncOptions),
+			_mockExternalApiClient.Object);
     }
 
     [Fact]

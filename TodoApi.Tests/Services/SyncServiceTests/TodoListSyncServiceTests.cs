@@ -411,7 +411,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithItem(item)
 			.Build();
 
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		// Act
@@ -453,7 +453,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithUpdatedAt(DateTime.UtcNow) // Newer than local
 			.Build();
 
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		_mockTodoListConflictResolver.Setup(x => x.ResolveConflict(
@@ -588,7 +588,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithItem(externalItem2)
 			.Build();
 
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		// Setup conflict resolver mocks to allow proper syncing
@@ -667,7 +667,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithUpdatedAt(externalModifiedTime)
 			.Build();
 
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		// Act
@@ -729,7 +729,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithItem(externalTodoItem)
 			.Build();
 
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		// Act
@@ -775,7 +775,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithUpdatedAt(externalModifiedTime)
 			.Build();
 
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		// Act
@@ -821,7 +821,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithUpdatedAt(externalModifiedTime)
 			.Build();
 
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		// Act
@@ -915,7 +915,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_mockExternalClient.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
 			.ReturnsAsync(unsyncedLocalListCreatedInExternalAfterSync);
 
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { unsyncedExternalList, conflictedExternalList });
 
 		// Act
@@ -948,7 +948,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		// Arrange
 
 		// Setup mock to return empty list
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync()).ReturnsAsync(new List<ExternalTodoList>());
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<ExternalTodoList>());
 		_mockTodoListService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(0);
 		_mockTodoItemService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(0);
 		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(false);
@@ -958,7 +958,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 
 		// Assert
 		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Never);
-		_mockExternalClient.Verify(x => x.GetTodoListsAsync(), Times.Once); // Still checks for external changes
+		_mockExternalClient.Verify(x => x.GetTodoListsPendingSync(), Times.Once); // Still checks for external changes
 	}
 
 	[Fact]
@@ -980,7 +980,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.Build();
 
 		_mockExternalClient.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>())).ReturnsAsync(externalResponse);
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync()).ReturnsAsync(new List<ExternalTodoList>());
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<ExternalTodoList>());
 
 		// Setup retry policy mocks
 		_mockRetryPolicyService.Setup(x => x.GetSyncRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
@@ -994,7 +994,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 
 		// Assert
 		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Once);
-		_mockExternalClient.Verify(x => x.GetTodoListsAsync(), Times.Once);
+		_mockExternalClient.Verify(x => x.GetTodoListsPendingSync(), Times.Once);
 	}
 
 	[Fact]
@@ -1281,14 +1281,14 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 
 		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
 		_mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(lastSyncTime);
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		// Act
 		await _syncService.SyncTodoListsFromExternalAsync();
 
 		// Assert
-		_mockExternalClient.Verify(x => x.GetTodoListsAsync(), Times.Once);
+		_mockExternalClient.Verify(x => x.GetTodoListsPendingSync(), Times.Once);
 		_mockSyncStateService.Verify(x => x.UpdateLastSyncTimestampAsync(It.IsAny<DateTime>()), Times.Once);
 	}
 
@@ -1304,14 +1304,14 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.Build();
 
 		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(false);
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		// Act
 		await _syncService.SyncTodoListsFromExternalAsync();
 
 		// Assert
-		_mockExternalClient.Verify(x => x.GetTodoListsAsync(), Times.Once);
+		_mockExternalClient.Verify(x => x.GetTodoListsPendingSync(), Times.Once);
 		_mockSyncStateService.Verify(x => x.UpdateLastSyncTimestampAsync(It.IsAny<DateTime>()), Times.Once);
 	}
 

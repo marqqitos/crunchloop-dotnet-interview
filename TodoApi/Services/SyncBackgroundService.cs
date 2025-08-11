@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using TodoApi.Configuration;
+using TodoApi.Services.ExternalTodoApiClient;
 using TodoApi.Services.SyncService;
 using TodoApi.Services.TodoItemService;
 using TodoApi.Services.TodoListService;
@@ -16,19 +17,22 @@ public class SyncBackgroundService : BackgroundService
 	private readonly ITodoItemService _todoItemService;
 	private readonly ILogger<SyncBackgroundService> _logger;
 	private readonly SyncOptions _syncOptions;
+	private readonly IExternalTodoApiClient _externalApiClient;
 
 	public SyncBackgroundService(
 		ISyncService syncService,
 		ITodoListService todoListService,
 		ITodoItemService todoItemService,
 		ILogger<SyncBackgroundService> logger,
-		IOptions<SyncOptions> syncOptions)
+		IOptions<SyncOptions> syncOptions,
+		IExternalTodoApiClient externalApiClient)
 	{
 		_syncService = syncService;
 		_todoListService = todoListService;
 		_todoItemService = todoItemService;
 		_logger = logger;
 		_syncOptions = syncOptions.Value;
+		_externalApiClient = externalApiClient;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -43,18 +47,21 @@ public class SyncBackgroundService : BackgroundService
 				_logger.LogDebug("Starting periodic sync at {Timestamp}", DateTime.UtcNow);
 
 				// Check if there are pending changes before performing sync
-				var todoListPendingChangesCount = await _todoListService.GetPendingChangesCountAsync();
-				var todoItemPendingChangesCount = await _todoItemService.GetPendingChangesCountAsync();
-				var pendingCount = todoListPendingChangesCount + todoItemPendingChangesCount;
-				var hasPendingChanges = todoListPendingChangesCount > 0 || todoItemPendingChangesCount > 0;
+				var pendingCount = await AreLocalChangesPendingSync();
 
-				if (hasPendingChanges)
+				if (pendingCount > 0)
 				{
-					_logger.LogInformation("Found {PendingCount} pending changes, performing sync", pendingCount);
+					_logger.LogInformation("Found {PendingCount} pending local changes, performing sync", pendingCount);
 					await _syncService.PerformFullSyncAsync();
 				}
 				else
 				{
+					pendingCount = await AreExternalChangesPendingSync();
+					_logger.LogInformation("Found {PendingCount} pending external changes, performing sync", pendingCount);
+
+					if (pendingCount > 0)
+						await _syncService.PerformFullSyncAsync();
+					else
 					_logger.LogDebug("No pending changes found, skipping sync");
 				}
 
@@ -81,6 +88,20 @@ public class SyncBackgroundService : BackgroundService
 				break;
 			}
 		}
+	}
+
+	private async Task<int> AreLocalChangesPendingSync()
+	{
+		var todoListPendingChangesCount = await _todoListService.GetPendingChangesCountAsync();
+		var todoItemPendingChangesCount = await _todoItemService.GetPendingChangesCountAsync();
+		var pendingCount = todoListPendingChangesCount + todoItemPendingChangesCount;
+		return pendingCount;
+	}
+
+	private async Task<int> AreExternalChangesPendingSync()
+	{
+		var externalTodoLists = await _externalApiClient.GetTodoListsPendingSync();
+		return externalTodoLists.Count;
 	}
 
 	public override async Task StopAsync(CancellationToken cancellationToken)

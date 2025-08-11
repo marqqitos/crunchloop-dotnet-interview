@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using TodoApi.Configuration;
 using TodoApi.Dtos.External;
 using TodoApi.Services.RetryPolicyService;
+using TodoApi.Services.SyncStateService;
 
 namespace TodoApi.Services.ExternalTodoApiClient;
 
@@ -14,17 +15,19 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
     private readonly ExternalApiOptions _options;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IRetryPolicyService _retryPolicyService;
-
+	private readonly ISyncStateService _syncStateService;
     public ExternalTodoApiClient(
         HttpClient httpClient,
         ILogger<ExternalTodoApiClient> logger,
         IOptions<ExternalApiOptions> options,
-        IRetryPolicyService retryPolicyService)
+        IRetryPolicyService retryPolicyService,
+		ISyncStateService syncStateService)
     {
         _httpClient = httpClient;
         _logger = logger;
         _options = options.Value;
         _retryPolicyService = retryPolicyService;
+		_syncStateService = syncStateService;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -52,6 +55,27 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
             return todoLists ?? new List<ExternalTodoList>();
         });
     }
+
+	public async Task<List<ExternalTodoList>> GetTodoListsPendingSync()
+	{
+		// Determine if we can use delta sync
+		var isDeltaSyncAvailable = await _syncStateService.IsDeltaSyncAvailableAsync();
+		DateTime? sinceTimestamp = null;
+		List<ExternalTodoList> externalTodoLists;
+
+		if (isDeltaSyncAvailable)
+		{
+			sinceTimestamp = await _syncStateService.GetLastSyncTimestampAsync();
+			_logger.LogInformation("Using delta sync (client-side) - fetching all TodoLists and filtering by {SinceTimestamp}", sinceTimestamp);
+		}
+
+		// Always fetch all, then filter locally when delta is available
+		var allExternalLists = await GetTodoListsAsync();
+		externalTodoLists = isDeltaSyncAvailable && sinceTimestamp.HasValue
+			? allExternalLists.Where(tl => tl.UpdatedAt >= sinceTimestamp.Value).ToList()
+			: allExternalLists;
+		return externalTodoLists;
+	}
 
     public async Task<ExternalTodoList> CreateTodoListAsync(CreateExternalTodoList createDto)
     {

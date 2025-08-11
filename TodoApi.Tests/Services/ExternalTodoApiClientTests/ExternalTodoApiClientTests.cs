@@ -6,6 +6,8 @@ using Moq.Protected;
 using TodoApi.Configuration;
 using TodoApi.Services.ExternalTodoApiClient;
 using TodoApi.Services.RetryPolicyService;
+using TodoApi.Services.SyncStateService;
+using TodoApi.Tests.Builders;
 
 namespace TodoApi.Tests.Services.ExternalTodoApiClientTests;
 
@@ -15,6 +17,7 @@ public class ExternalTodoApiClientTests : IDisposable
     private readonly HttpClient _httpClient;
     private readonly Mock<ILogger<ExternalTodoApiClient>> _mockLogger;
     private readonly Mock<IRetryPolicyService> _mockRetryPolicyService;
+	private readonly Mock<ISyncStateService> _mockSyncStateService;
     private readonly ExternalApiOptions _options;
     private readonly ExternalTodoApiClient _client;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -29,7 +32,9 @@ public class ExternalTodoApiClientTests : IDisposable
 
         _mockLogger = new Mock<ILogger<ExternalTodoApiClient>>();
         _mockRetryPolicyService = new Mock<IRetryPolicyService>();
-        _options = new ExternalApiOptions
+		_mockSyncStateService = new Mock<ISyncStateService>();
+
+		_options = new ExternalApiOptions
         {
             BaseUrl = "http://localhost:8080",
             TimeoutSeconds = 30,
@@ -42,7 +47,12 @@ public class ExternalTodoApiClientTests : IDisposable
         // Setup retry policy mocks to return empty pipelines for tests
         _mockRetryPolicyService.Setup(x => x.GetHttpRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
 
-        _client = new ExternalTodoApiClient(_httpClient, _mockLogger.Object, optionsMock.Object, _mockRetryPolicyService.Object);
+        _client = new ExternalTodoApiClient(
+			_httpClient,
+			_mockLogger.Object,
+			optionsMock.Object,
+			_mockRetryPolicyService.Object,
+			_mockSyncStateService.Object);
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -288,6 +298,186 @@ public class ExternalTodoApiClientTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<HttpRequestException>(() => _client.CreateTodoListAsync(createDto));
+    }
+
+    [Fact]
+    public async Task GetTodoListsPendingSync_WhenDeltaSyncNotAvailable_ShouldReturnAllTodoLists()
+    {
+        // Arrange
+		var externalTodoList1 = ExternalTodoListBuilder.Create()
+			.WithId("1")
+			.WithName("List 1")
+			.WithUpdatedAt(DateTime.UtcNow.AddHours(-2))
+			.Build();
+		var externalTodoList2 = ExternalTodoListBuilder.Create()
+			.WithId("2")
+			.WithName("List 2")
+			.WithUpdatedAt(DateTime.UtcNow.AddHours(-1))
+			.Build();
+
+		var expectedTodoLists = new List<ExternalTodoList> { externalTodoList1, externalTodoList2 };
+
+		var jsonResponse = JsonSerializer.Serialize(expectedTodoLists, _jsonOptions);
+
+        SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(false);
+
+        // Act
+        var result = await _client.GetTodoListsPendingSync();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal("List 1", result[0].Name);
+        Assert.Equal("List 2", result[1].Name);
+
+        VerifyHttpRequest(HttpMethod.Get, "/todolists");
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetTodoListsPendingSync_WhenDeltaSyncAvailable_ShouldFilterByLastSyncTimestamp()
+    {
+        // Arrange
+        var lastSyncTimestamp = DateTime.UtcNow.AddHours(-2);
+
+		var externalTodoList1 = ExternalTodoListBuilder.Create()
+			.WithId("1")
+			.WithName("Old List")
+			.WithUpdatedAt(DateTime.UtcNow.AddHours(-3))
+			.Build();
+		var externalTodoList2 = ExternalTodoListBuilder.Create()
+			.WithId("2")
+			.WithName("Recent List")
+			.WithUpdatedAt(DateTime.UtcNow.AddHours(-1))
+			.Build();
+		var externalTodoList3 = ExternalTodoListBuilder.Create()
+			.WithId("3")
+			.WithName("New List")
+			.WithUpdatedAt(DateTime.UtcNow)
+			.Build();
+
+		var allTodoLists = new List<ExternalTodoList> { externalTodoList1, externalTodoList2, externalTodoList3 };
+
+        var jsonResponse = JsonSerializer.Serialize(allTodoLists, _jsonOptions);
+
+        SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(lastSyncTimestamp);
+
+        // Act
+        var result = await _client.GetTodoListsPendingSync();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal("Recent List", result[0].Name);
+        Assert.Equal("New List", result[1].Name);
+        Assert.All(result, tl => Assert.True(tl.UpdatedAt >= lastSyncTimestamp));
+
+        VerifyHttpRequest(HttpMethod.Get, "/todolists");
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetTodoListsPendingSync_WhenDeltaSyncAvailableButNoLastSyncTimestamp_ShouldReturnAllTodoLists()
+    {
+        // Arrange
+		var externalTodoList1 = ExternalTodoListBuilder.Create()
+			.WithId("1")
+			.WithName("List 1")
+			.WithUpdatedAt(DateTime.UtcNow.AddHours(-2))
+			.Build();
+		var externalTodoList2 = ExternalTodoListBuilder.Create()
+			.WithId("2")
+			.WithName("List 2")
+			.WithUpdatedAt(DateTime.UtcNow.AddHours(-1))
+			.Build();
+
+		var expectedTodoLists = new List<ExternalTodoList> { externalTodoList1, externalTodoList2 };
+
+        var jsonResponse = JsonSerializer.Serialize(expectedTodoLists, _jsonOptions);
+
+        SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync((DateTime?)null);
+
+        // Act
+        var result = await _client.GetTodoListsPendingSync();
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.Equal("List 1", result[0].Name);
+        Assert.Equal("List 2", result[1].Name);
+
+        VerifyHttpRequest(HttpMethod.Get, "/todolists");
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetTodoListsPendingSync_WhenDeltaSyncAvailableAndEmptyResponse_ShouldReturnEmptyList()
+    {
+        // Arrange
+        SetupHttpResponse(HttpStatusCode.OK, "[]");
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(DateTime.UtcNow.AddHours(-1));
+
+        // Act
+        var result = await _client.GetTodoListsPendingSync();
+
+        // Assert
+        Assert.Empty(result);
+
+        VerifyHttpRequest(HttpMethod.Get, "/todolists");
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetTodoListsPendingSync_WhenDeltaSyncAvailableAndHttpError_ShouldThrowAndLog()
+    {
+        // Arrange
+        SetupHttpResponse(HttpStatusCode.InternalServerError, "Internal Server Error");
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(DateTime.UtcNow.AddHours(-1));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() => _client.GetTodoListsPendingSync());
+
+        VerifyHttpRequest(HttpMethod.Get, "/todolists");
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetTodoListsPendingSync_WhenDeltaSyncAvailableAndFiltering_ShouldLogDeltaSyncInfo()
+    {
+        // Arrange
+        var lastSyncTimestamp = DateTime.UtcNow.AddHours(-1);
+		var externalTodoList1 = ExternalTodoListBuilder.Create()
+			.WithId("1")
+			.WithName("Recent List")
+			.WithUpdatedAt(DateTime.UtcNow)
+			.Build();
+		var allTodoLists = new List<ExternalTodoList> { externalTodoList1 };
+
+        var jsonResponse = JsonSerializer.Serialize(allTodoLists, _jsonOptions);
+
+        SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(lastSyncTimestamp);
+
+        // Act
+        var result = await _client.GetTodoListsPendingSync();
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal("Recent List", result[0].Name);
+
+        VerifyHttpRequest(HttpMethod.Get, "/todolists");
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
     }
 
     private void SetupHttpResponse(HttpStatusCode statusCode, string content)

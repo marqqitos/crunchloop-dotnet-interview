@@ -103,75 +103,60 @@ public class TodoListSyncService : ISyncService
         _logger.LogInformation("Starting inbound sync of TodoLists from external API");
 
         try
-        {
-            // Determine if we can use delta sync
-            var isDeltaSyncAvailable = await _syncStateService.IsDeltaSyncAvailableAsync();
-            DateTime? sinceTimestamp = null;
-            List<ExternalTodoList> externalTodoLists;
+		{
+			var externalTodoLists = await _externalApiClient.GetTodoListsPendingSync();
 
-            if (isDeltaSyncAvailable)
-            {
-                sinceTimestamp = await _syncStateService.GetLastSyncTimestampAsync();
-                _logger.LogInformation("Using delta sync (client-side) - fetching all TodoLists and filtering by {SinceTimestamp}", sinceTimestamp);
-            }
+			if (externalTodoLists == null || externalTodoLists.Count == 0)
+			{
+				_logger.LogInformation("No TodoLists found in external API");
+				return;
+			}
 
-            // Always fetch all, then filter locally when delta is available
-            var allExternalLists = await _externalApiClient.GetTodoListsAsync();
-            externalTodoLists = isDeltaSyncAvailable && sinceTimestamp.HasValue
-                ? allExternalLists.Where(tl => tl.UpdatedAt >= sinceTimestamp.Value).ToList()
-                : allExternalLists;
+			_logger.LogInformation("Found {Count} TodoLists in external API",
+				externalTodoLists.Count);
 
-            if (externalTodoLists == null || externalTodoLists.Count == 0)
-            {
-                _logger.LogInformation("No TodoLists found in external API");
-                return;
-            }
+			var createdCount = 0;
+			var updatedCount = 0;
+			var failedCount = 0;
 
-            _logger.LogInformation("Found {Count} TodoLists in external API (delta sync: {IsDeltaSync})",
-                externalTodoLists.Count, isDeltaSyncAvailable);
+			foreach (var externalTodoList in externalTodoLists)
+			{
+				try
+				{
+					var result = await SyncSingleTodoListFromExternalAsync(externalTodoList);
+					if (result.IsCreated)
+						createdCount++;
+					else if (result.IsUpdated)
+						updatedCount++;
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Failed to sync external TodoList '{ExternalId}' '{Name}'",
+						externalTodoList.Id, externalTodoList.Name);
+					failedCount++;
+				}
+			}
 
-            var createdCount = 0;
-            var updatedCount = 0;
-            var failedCount = 0;
+			// Update sync timestamp after successful sync
+			if (createdCount > 0 || updatedCount > 0)
+			{
+				var syncTimestamp = DateTime.UtcNow;
+				await _syncStateService.UpdateLastSyncTimestampAsync(syncTimestamp);
+				_logger.LogInformation("Updated sync timestamp to {SyncTimestamp} after processing {TotalCount} entities",
+					syncTimestamp, createdCount + updatedCount);
+			}
 
-            foreach (var externalTodoList in externalTodoLists)
-            {
-                try
-                {
-                    var result = await SyncSingleTodoListFromExternalAsync(externalTodoList);
-                    if (result.IsCreated)
-                        createdCount++;
-                    else if (result.IsUpdated)
-                        updatedCount++;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to sync external TodoList '{ExternalId}' '{Name}'",
-                        externalTodoList.Id, externalTodoList.Name);
-                    failedCount++;
-                }
-            }
-
-            // Update sync timestamp after successful sync
-            if (createdCount > 0 || updatedCount > 0)
-            {
-                var syncTimestamp = DateTime.UtcNow;
-                await _syncStateService.UpdateLastSyncTimestampAsync(syncTimestamp);
-                _logger.LogInformation("Updated sync timestamp to {SyncTimestamp} after processing {TotalCount} entities",
-                    syncTimestamp, createdCount + updatedCount);
-            }
-
-            _logger.LogInformation("Inbound sync completed. Created: {CreatedCount}, Updated: {UpdatedCount}, Failed: {FailedCount} (delta sync: {IsDeltaSync})",
-                createdCount, updatedCount, failedCount, isDeltaSyncAvailable);
-        }
-        catch (Exception ex)
+			_logger.LogInformation("Inbound sync completed. Created: {CreatedCount}, Updated: {UpdatedCount}, Failed: {FailedCount}",
+				createdCount, updatedCount, failedCount);
+		}
+		catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to sync TodoLists from external API");
             throw;
         }
     }
 
-    public async Task PerformFullSyncAsync()
+	public async Task PerformFullSyncAsync()
     {
         _logger.LogInformation("Starting bidirectional sync (Local ↔ External)");
 

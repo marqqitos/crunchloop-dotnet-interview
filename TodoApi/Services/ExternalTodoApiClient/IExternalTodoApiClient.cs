@@ -14,6 +14,11 @@ public interface IExternalTodoApiClient
     /// </summary>
     Task<List<ExternalTodoList>> GetTodoListsAsync();
 
+	/// <summary>
+	/// Get all TodoLists from external API that have pending sync with our local database
+	/// </summary>
+	Task<List<ExternalTodoList>> GetTodoListsPendingSync();
+
     /// <summary>
     /// Create a new TodoList in external API
     /// </summary>

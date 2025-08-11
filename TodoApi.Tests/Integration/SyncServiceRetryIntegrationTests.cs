@@ -257,12 +257,14 @@ public class RetryIntegrationTests : IAsyncDisposable
         };
         var mockExternalApiOptions = new Mock<IOptions<ExternalApiOptions>>();
         mockExternalApiOptions.Setup(x => x.Value).Returns(externalApiOptions);
+		var mockSyncStateService = new Mock<ISyncStateService>();
 
         return new ExternalTodoApiClient(
             httpClient,
             mockHttpLogger.Object,
             mockExternalApiOptions.Object,
-            _retryPolicyService);
+            _retryPolicyService,
+			mockSyncStateService.Object);
     }
 
     private TodoListSyncService CreateSyncServiceWithRealExternalClient(ExternalTodoApiClient externalClient)
