@@ -72,8 +72,9 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
 		// Always fetch all, then filter locally when delta is available
 		var allExternalLists = await GetTodoListsAsync();
 		externalTodoLists = isDeltaSyncAvailable && sinceTimestamp.HasValue
-			? allExternalLists.Where(tl => tl.UpdatedAt >= sinceTimestamp.Value).ToList()
+			? allExternalLists.Where(tl => tl.UpdatedAt > sinceTimestamp.Value || tl.Items.Any(i => i.UpdatedAt > sinceTimestamp.Value)).ToList()
 			: allExternalLists;
+            
 		return externalTodoLists;
 	}
 

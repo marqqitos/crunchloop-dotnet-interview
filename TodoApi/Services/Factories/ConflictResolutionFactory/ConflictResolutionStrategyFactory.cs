@@ -14,7 +14,7 @@ public class ConflictResolutionStrategyFactory<TLocal, TExternal> : IConflictRes
 {
     private readonly Dictionary<ConflictResolutionStrategy, IConflictResolutionStrategy<TLocal, TExternal>> _strategies;
 
-    public ConflictResolutionStrategyFactory(ILogger logger)
+    public ConflictResolutionStrategyFactory(ILogger<ConflictResolutionStrategyFactory<TLocal, TExternal>> logger)
     {
         _strategies = new Dictionary<ConflictResolutionStrategy, IConflictResolutionStrategy<TLocal, TExternal>>
         {

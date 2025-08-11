@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using TodoApi.Services;
 using TodoApi.Services.SyncService;
 
 namespace TodoApi.Controllers;

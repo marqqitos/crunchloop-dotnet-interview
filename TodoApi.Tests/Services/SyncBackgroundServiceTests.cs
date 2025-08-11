@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TodoApi.Configuration;
 using TodoApi.Services.ExternalTodoApiClient;
@@ -14,6 +15,7 @@ public class SyncBackgroundServiceTests
 	private readonly Mock<ITodoListService> _mockTodoListService;
 	private readonly Mock<ITodoItemService> _mockTodoItemService;
 	private readonly Mock<IExternalTodoApiClient> _mockExternalApiClient;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly SyncOptions _syncOptions;
 
 	private SyncBackgroundService _sut;
@@ -34,13 +36,20 @@ public class SyncBackgroundServiceTests
             SyncOnStartup = false
         };
 
+        // Create a real service collection and register our mocked services
+        var services = new ServiceCollection();
+        services.AddScoped<ISyncService>(_ => _mockSyncService.Object);
+        services.AddScoped<ITodoListService>(_ => _mockTodoListService.Object);
+        services.AddScoped<ITodoItemService>(_ => _mockTodoItemService.Object);
+        services.AddScoped<IExternalTodoApiClient>(_ => _mockExternalApiClient.Object);
+
+        var serviceProvider = services.BuildServiceProvider();
+        _serviceScopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
+
 		_sut = new SyncBackgroundService(
-			_mockSyncService.Object,
-			_mockTodoListService.Object,
-			_mockTodoItemService.Object,
+			_serviceScopeFactory,
 			_mockLogger.Object,
-			new OptionsWrapper<SyncOptions>(_syncOptions),
-			_mockExternalApiClient.Object);
+			new OptionsWrapper<SyncOptions>(_syncOptions));
     }
 
     [Fact]
