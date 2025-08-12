@@ -48,7 +48,7 @@ public class RetryPolicyService : IRetryPolicyService
                 MaxDelay = TimeSpan.FromMilliseconds(_retryOptions.MaxDelayMs),
                 UseJitter = true,
                 ShouldHandle = new PredicateBuilder()
-                    .Handle<HttpRequestException>()
+                    .Handle<HttpRequestException>(ex => ShouldRetryHttpException(ex))
                     .Handle<TaskCanceledException>()
                     .HandleResult((HttpResponseMessage response) =>
                         !response.IsSuccessStatusCode &&
@@ -172,6 +172,22 @@ public class RetryPolicyService : IRetryPolicyService
                 }
             })
             .Build();
+    }
+
+    private static bool ShouldRetryHttpException(HttpRequestException ex)
+    {
+        // For HttpRequestException, we need to parse the message to determine the status code
+        // since the status code is not directly accessible from the exception
+        return ex.Message switch
+        {
+            string message when message.Contains("404") || message.Contains("Not Found") => false,
+            string message when message.Contains("400") || message.Contains("Bad Request") => false,
+            string message when message.Contains("401") || message.Contains("Unauthorized") => false,
+            string message when message.Contains("403") || message.Contains("Forbidden") => false,
+            string message when message.Contains("409") || message.Contains("Conflict") => false,
+            // Retry on server errors and other transient issues
+            _ => true
+        };
     }
 
     private static bool ShouldRetryHttpStatusCode(HttpStatusCode statusCode)

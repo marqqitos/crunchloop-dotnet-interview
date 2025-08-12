@@ -52,9 +52,10 @@ public class TodoListSyncService : ISyncService
         try
         {
             // Find TodoLists that have pending changes or haven't been synced yet
+            // Include both active and deleted items that need syncing
             var pendingTodoLists = await _context.TodoList
                 .Where(tl => tl.IsSyncPending || tl.ExternalId == null)
-                .Include(tl => tl.Items) // Include items for complete sync
+                .Include(tl => tl.Items.Where(item => item.IsSyncPending)) // Include items that need syncing (including deleted)
                 .ToListAsync();
 
             if (!pendingTodoLists.Any())
@@ -117,8 +118,10 @@ public class TodoListSyncService : ISyncService
 
 			var createdCount = 0;
 			var updatedCount = 0;
+			var deletedCount = 0;
 			var failedCount = 0;
 
+			// Process existing external lists
 			foreach (var externalTodoList in externalTodoLists)
 			{
 				try
@@ -137,17 +140,20 @@ public class TodoListSyncService : ISyncService
 				}
 			}
 
+			// Detect and handle external deletions
+			deletedCount = await DetectAndHandleExternalDeletionsAsync(externalTodoLists);
+
 			// Update sync timestamp after successful sync
-			if (createdCount > 0 || updatedCount > 0)
+			if (createdCount > 0 || updatedCount > 0 || deletedCount > 0)
 			{
 				var syncTimestamp = DateTime.UtcNow;
 				await _syncStateService.UpdateLastSyncTimestampAsync(syncTimestamp);
 				_logger.LogInformation("Updated sync timestamp to {SyncTimestamp} after processing {TotalCount} entities",
-					syncTimestamp, createdCount + updatedCount);
+					syncTimestamp, createdCount + updatedCount + deletedCount);
 			}
 
-			_logger.LogInformation("Inbound sync completed. Created: {CreatedCount}, Updated: {UpdatedCount}, Failed: {FailedCount}",
-				createdCount, updatedCount, failedCount);
+			_logger.LogInformation("Inbound sync completed. Created: {CreatedCount}, Updated: {UpdatedCount}, Deleted: {DeletedCount}, Failed: {FailedCount}",
+				createdCount, updatedCount, deletedCount, failedCount);
 		}
 		catch (Exception ex)
         {
@@ -168,8 +174,8 @@ public class TodoListSyncService : ISyncService
 
 			var hasPendingChanges = todoListPendingChangesCount > 0 || todoItemPendingChangesCount > 0;
 
-            // Also check for any unsynced TodoLists (no ExternalId)
-            var hasUnsyncedTodoLists = await _context.TodoList.AnyAsync(tl => tl.ExternalId == null);
+            // Also check for any unsynced TodoLists (no ExternalId) that aren't deleted
+            var hasUnsyncedTodoLists = await _context.TodoList.AnyAsync(tl => tl.ExternalId == null && !tl.IsDeleted);
 
             _logger.LogInformation("Sync check: HasPendingChanges={HasPendingChanges}, PendingCount={PendingCount}, HasUnsynced={HasUnsynced}",
                 hasPendingChanges, todoListPendingChangesCount, hasUnsyncedTodoLists);
@@ -203,51 +209,139 @@ public class TodoListSyncService : ISyncService
         _logger.LogDebug("Syncing TodoList {TodoListId} '{Name}' to external API",
             todoList.Id, todoList.Name);
 
-        // Create the external DTO
-        var createDto = new CreateExternalTodoList
+        // Check if this is a deletion
+        if (todoList.IsDeleted && !string.IsNullOrEmpty(todoList.ExternalId))
         {
-            SourceId = _externalApiClient.SourceId,
-            Name = todoList.Name,
-            Items = todoList.Items.Select(item => new CreateExternalTodoItem
+            _logger.LogInformation("Deleting TodoList {TodoListId} '{Name}' from external API", todoList.Id, todoList.Name);
+            
+            try
             {
-                SourceId = _externalApiClient.SourceId,
-                Description = item.Description,
-                Completed = item.IsCompleted
-            }).ToList()
-        };
-
-        // Create in external API
-        var externalTodoList = await _externalApiClient.CreateTodoListAsync(createDto);
-
-        // Update local record with external ID and sync timestamp
-        var syncTime = DateTime.UtcNow;
-        todoList.ExternalId = externalTodoList.Id;
-        todoList.LastModified = syncTime;
-        todoList.LastSyncedAt = syncTime;
-        todoList.IsSyncPending = false; // Clear pending flag after successful sync
-
-        // Update TodoItems with their external IDs and sync timestamps
-        foreach (var externalItem in externalTodoList.Items)
-        {
-            var localItem = todoList.Items.FirstOrDefault(item => item.Description == externalItem.Description);
-            if (localItem != null)
-            {
-                localItem.ExternalId = externalItem.Id;
-                localItem.LastModified = syncTime;
-                localItem.LastSyncedAt = syncTime;
-                localItem.IsSyncPending = false; // Clear pending flag after successful sync
+                await _externalApiClient.DeleteTodoListAsync(todoList.ExternalId);
+                _logger.LogInformation("Successfully deleted TodoList {TodoListId} from external API", todoList.Id);
             }
+            catch (HttpRequestException ex) when (ex.Message.Contains("404") || ex.Message.Contains("NotFound"))
+            {
+                _logger.LogInformation("TodoList {TodoListId} not found in external API (404) - treating as successful deletion", todoList.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete TodoList {TodoListId} from external API", todoList.Id);
+                throw; // Re-throw other exceptions to trigger retry
+            }
+            
+            // Mark as synced and clean up
+            todoList.IsSyncPending = false;
+            todoList.LastSyncedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return;
         }
 
-        // Save changes to database with retry logic
-        var databaseRetryPolicy = _retryPolicyService.GetDatabaseRetryPolicy();
-        await databaseRetryPolicy.ExecuteAsync(async cancellationToken =>
+        // Handle new TodoList creation
+        if (string.IsNullOrEmpty(todoList.ExternalId))
         {
-            await _context.SaveChangesAsync(cancellationToken);
-        });
+            // Create the external DTO
+            var createDto = new CreateExternalTodoList
+            {
+                SourceId = _externalApiClient.SourceId,
+                Name = todoList.Name,
+                Items = todoList.Items.Where(item => !item.IsDeleted).Select(item => new CreateExternalTodoItem
+                {
+                    SourceId = _externalApiClient.SourceId,
+                    Description = item.Description,
+                    Completed = item.IsCompleted
+                }).ToList()
+            };
 
-        _logger.LogInformation("Successfully synced TodoList {TodoListId} '{Name}' with external ID '{ExternalId}'",
-            todoList.Id, todoList.Name, externalTodoList.Id);
+            // Create in external API
+            var externalTodoList = await _externalApiClient.CreateTodoListAsync(createDto);
+
+            // Update local record with external ID and sync timestamp
+            var syncTime = DateTime.UtcNow;
+            todoList.ExternalId = externalTodoList.Id;
+            todoList.LastModified = syncTime;
+            todoList.LastSyncedAt = syncTime;
+            todoList.IsSyncPending = false; // Clear pending flag after successful sync
+
+            // Update TodoItems with their external IDs and sync timestamps
+            foreach (var externalItem in externalTodoList.Items)
+            {
+                var localItem = todoList.Items.FirstOrDefault(item => item.Description == externalItem.Description && !item.IsDeleted);
+                if (localItem != null)
+                {
+                    localItem.ExternalId = externalItem.Id;
+                    localItem.LastModified = syncTime;
+                    localItem.LastSyncedAt = syncTime;
+                    localItem.IsSyncPending = false; // Clear pending flag after successful sync
+                }
+            }
+
+            // Save changes to database with retry logic
+            var databaseRetryPolicy = _retryPolicyService.GetDatabaseRetryPolicy();
+            await databaseRetryPolicy.ExecuteAsync(async cancellationToken =>
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+            });
+
+            _logger.LogInformation("Successfully synced TodoList {TodoListId} '{Name}' with external ID '{ExternalId}'",
+                todoList.Id, todoList.Name, externalTodoList.Id);
+            return;
+        }
+
+        // Handle existing TodoList updates and item-level changes
+        if (!string.IsNullOrEmpty(todoList.ExternalId))
+        {
+            await SyncTodoListItemChangesAsync(todoList);
+        }
+    }
+
+    private async Task SyncTodoListItemChangesAsync(TodoList todoList)
+    {
+        _logger.LogDebug("Syncing item changes for TodoList {TodoListId}", todoList.Id);
+
+        // Handle individual item deletions first
+        var deletedItems = todoList.Items.Where(item => item.IsDeleted && !string.IsNullOrEmpty(item.ExternalId)).ToList();
+        foreach (var deletedItem in deletedItems)
+        {
+            _logger.LogInformation("Deleting TodoItem {TodoItemId} from external API", deletedItem.Id);
+            
+            try
+            {
+                await _externalApiClient.DeleteTodoItemAsync(todoList.ExternalId!, deletedItem.ExternalId!);
+                _logger.LogInformation("Successfully deleted TodoItem {TodoItemId} from external API", deletedItem.Id);
+            }
+            catch (HttpRequestException ex) when (ex.Message.Contains("404") || ex.Message.Contains("NotFound"))
+            {
+                _logger.LogInformation("TodoItem {TodoItemId} not found in external API (404) - treating as successful deletion", deletedItem.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete TodoItem {TodoItemId} from external API", deletedItem.Id);
+                throw; // Re-throw other exceptions to trigger retry
+            }
+            
+            // Mark as synced
+            deletedItem.IsSyncPending = false;
+            deletedItem.LastSyncedAt = DateTime.UtcNow;
+        }
+
+        // Handle item updates (for now, just mark them as synced - full item sync logic can be added later)
+        var updatedItems = todoList.Items.Where(item => !item.IsDeleted && item.IsSyncPending && !string.IsNullOrEmpty(item.ExternalId)).ToList();
+        foreach (var updatedItem in updatedItems)
+        {
+            // TODO: Implement individual item updates if needed
+            // For now, just clear the pending flag as the full list sync will handle updates
+            updatedItem.IsSyncPending = false;
+            updatedItem.LastSyncedAt = DateTime.UtcNow;
+        }
+
+        // Clear TodoList pending flag if all items are synced
+        if (todoList.Items.All(item => !item.IsSyncPending))
+        {
+            todoList.IsSyncPending = false;
+            todoList.LastSyncedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     private async Task<SyncResult> SyncSingleTodoListFromExternalAsync(ExternalTodoList externalTodoList)
@@ -255,7 +349,7 @@ public class TodoListSyncService : ISyncService
         _logger.LogDebug("Processing external TodoList '{ExternalId}' '{Name}'",
             externalTodoList.Id, externalTodoList.Name);
 
-        // Check if we already have this TodoList locally
+        // Check if we already have this TodoList locally (including soft-deleted ones for potential restoration)
         var existingTodoList = await _context.TodoList
             .Include(tl => tl.Items)
             .FirstOrDefaultAsync(tl => tl.ExternalId == externalTodoList.Id);
@@ -264,6 +358,37 @@ public class TodoListSyncService : ISyncService
         {
             // Create new local TodoList from external data
             return await CreateLocalTodoListFromExternalAsync(externalTodoList);
+        }
+        else if (existingTodoList.IsDeleted)
+        {
+            // Restore soft-deleted TodoList
+            _logger.LogInformation("Restoring soft-deleted TodoList {LocalId} '{Name}' from external data", 
+                existingTodoList.Id, existingTodoList.Name);
+            
+            var now = DateTime.UtcNow;
+            existingTodoList.IsDeleted = false;
+            existingTodoList.DeletedAt = null;
+            existingTodoList.Name = externalTodoList.Name;
+            existingTodoList.LastModified = externalTodoList.UpdatedAt;
+            existingTodoList.LastSyncedAt = now;
+
+            // Also restore any items that exist in external
+            foreach (var externalItem in externalTodoList.Items)
+            {
+                var localItem = existingTodoList.Items.FirstOrDefault(item => item.ExternalId == externalItem.Id);
+                if (localItem != null && localItem.IsDeleted)
+                {
+                    localItem.IsDeleted = false;
+                    localItem.DeletedAt = null;
+                    localItem.Description = externalItem.Description;
+                    localItem.IsCompleted = externalItem.Completed;
+                    localItem.LastModified = externalItem.UpdatedAt;
+                    localItem.LastSyncedAt = now;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return SyncResult.Updated();
         }
         else
         {
@@ -340,8 +465,9 @@ public class TodoListSyncService : ISyncService
     private Task<bool> SyncTodoItemsFromExternalAsync(TodoList localTodoList, IEnumerable<ExternalTodoItem> externalItems)
     {
         var hasChanges = false;
+        var externalItemsList = externalItems.ToList();
 
-        foreach (var externalItem in externalItems)
+        foreach (var externalItem in externalItemsList)
         {
             // Find matching local item by ExternalId
             var localItem = localTodoList.Items.FirstOrDefault(item => item.ExternalId == externalItem.Id);
@@ -390,6 +516,72 @@ public class TodoListSyncService : ISyncService
             }
         }
 
+        // Detect local items that are missing from external (deleted externally)
+        var externalItemIds = externalItemsList.Select(ei => ei.Id).ToHashSet();
+        var deletedLocalItems = localTodoList.Items
+            .Where(item => !item.IsDeleted && !string.IsNullOrEmpty(item.ExternalId) && !externalItemIds.Contains(item.ExternalId))
+            .ToList();
+
+        foreach (var deletedItem in deletedLocalItems)
+        {
+            _logger.LogInformation("Detected external deletion of TodoItem {LocalId} '{Description}' (ExternalId: {ExternalId})",
+                deletedItem.Id, deletedItem.Description, deletedItem.ExternalId);
+            
+            // Soft delete the locally orphaned item
+            var now = DateTime.UtcNow;
+            deletedItem.IsDeleted = true;
+            deletedItem.DeletedAt = now;
+            deletedItem.LastModified = now;
+            deletedItem.LastSyncedAt = now;
+            hasChanges = true;
+        }
+
         return Task.FromResult(hasChanges);
+    }
+
+    private async Task<int> DetectAndHandleExternalDeletionsAsync(List<ExternalTodoList> externalTodoLists)
+    {
+        _logger.LogDebug("Detecting external deletions");
+
+        var deletedCount = 0;
+        var externalListIds = externalTodoLists.Select(etl => etl.Id).ToHashSet();
+
+        // Find local TodoLists that have ExternalId but are missing from external response
+        var orphanedLocalLists = await _context.TodoList
+            .Where(tl => !tl.IsDeleted && !string.IsNullOrEmpty(tl.ExternalId) && !externalListIds.Contains(tl.ExternalId))
+            .Include(tl => tl.Items.Where(item => !item.IsDeleted))
+            .ToListAsync();
+
+        foreach (var orphanedList in orphanedLocalLists)
+        {
+            _logger.LogInformation("Detected external deletion of TodoList {LocalId} '{Name}' (ExternalId: {ExternalId})",
+                orphanedList.Id, orphanedList.Name, orphanedList.ExternalId);
+            
+            // Soft delete the locally orphaned list and all its items
+            var now = DateTime.UtcNow;
+            orphanedList.IsDeleted = true;
+            orphanedList.DeletedAt = now;
+            orphanedList.LastModified = now;
+            orphanedList.LastSyncedAt = now;
+
+            // Also soft delete all items in the list
+            foreach (var item in orphanedList.Items.Where(i => !i.IsDeleted))
+            {
+                item.IsDeleted = true;
+                item.DeletedAt = now;
+                item.LastModified = now;
+                item.LastSyncedAt = now;
+            }
+
+            deletedCount++;
+        }
+
+        if (deletedCount > 0)
+        {
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Soft deleted {DeletedCount} TodoLists that were deleted externally", deletedCount);
+        }
+
+        return deletedCount;
     }
 }

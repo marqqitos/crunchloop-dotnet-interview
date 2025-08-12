@@ -125,3 +125,4 @@ Validates data before and after synchronization operations to detect corruption 
 
 
 //Change Exceptions catched with custom ones
+//Asumo que cuando se crea o actualiza un item el valor updated_at de la lista tambien se actualiza

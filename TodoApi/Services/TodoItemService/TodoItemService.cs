@@ -16,17 +16,18 @@ public class TodoItemService : ITodoItemService
     }
 
 	public async Task<bool> TodoListExistsAsync(long todoListId)
-		=> await _context.TodoList.AnyAsync(t => t.Id == todoListId);
+		=> await _context.TodoList.AnyAsync(t => t.Id == todoListId && !t.IsDeleted);
 
 	public async Task<IList<TodoItemResponse>?> GetTodoItemsAsync(long todoListId)
     {
-        var todoList = await _context.TodoList.FindAsync(todoListId);
+        var todoList = await _context.TodoList
+			.FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
 
 		if (todoList is null)
 			return null;
 
         var items = await _context.TodoItem
-            .Where(item => item.TodoListId == todoListId)
+            .Where(item => item.TodoListId == todoListId && !item.IsDeleted)
             .Select(item => new TodoItemResponse
             {
                 Id = item.Id,
@@ -39,15 +40,16 @@ public class TodoItemService : ITodoItemService
         return items;
     }
 
-    public async Task<TodoItemResponse?> GetTodoItemAsync(long todoListId, long id)
-    {
-        var todoList = await _context.TodoList.FindAsync(todoListId);
+    	public async Task<TodoItemResponse?> GetTodoItemAsync(long todoListId, long id)
+	{
+		var todoList = await _context.TodoList
+			.FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
 
 		if (todoList is null)
 			return null;
 
         var todoItem = await _context.TodoItem
-            .Where(item => item.Id == id && item.TodoListId == todoListId)
+            .Where(item => item.Id == id && item.TodoListId == todoListId && !item.IsDeleted)
             .Select(item => new TodoItemResponse
             {
                 Id = item.Id,
@@ -62,12 +64,13 @@ public class TodoItemService : ITodoItemService
 
     public async Task<TodoItemResponse?> UpdateTodoItemAsync(long todoListId, long id, UpdateTodoItem payload)
     {
-        var todoList = await _context.TodoList.FindAsync(todoListId);
+        var todoList = await _context.TodoList
+			.FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
 
 		if (todoList is null)
 			return null;
 
-        var todoItem = await _context.TodoItem.FirstOrDefaultAsync(item => item.Id == id && item.TodoListId == todoListId);
+        var todoItem = await _context.TodoItem.FirstOrDefaultAsync(item => item.Id == id && item.TodoListId == todoListId && !item.IsDeleted);
 
 		if (todoItem is null)
 			return null;
@@ -90,7 +93,8 @@ public class TodoItemService : ITodoItemService
 
     public async Task<TodoItemResponse?> CreateTodoItemAsync(long todoListId, CreateTodoItem payload)
     {
-        var todoList = await _context.TodoList.FindAsync(todoListId);
+        var todoList = await _context.TodoList
+			.FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
 
 		if (todoList is null)
 			return null;
@@ -118,24 +122,37 @@ public class TodoItemService : ITodoItemService
 
     public async Task<bool> DeleteTodoItemAsync(long todoListId, long id)
     {
-        var todoList = await _context.TodoList.FindAsync(todoListId);
+        var todoList = await _context.TodoList
+			.FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
 
 		if (todoList is null)
 			return false;
 
-        var todoItem = await _context.TodoItem.FirstOrDefaultAsync(item => item.Id == id && item.TodoListId == todoListId);
+        var todoItem = await _context.TodoItem.FirstOrDefaultAsync(item => item.Id == id && item.TodoListId == todoListId && !item.IsDeleted);
 
 		if (todoItem is null)
 			return false;
 
-        _context.TodoItem.Remove(todoItem);
+        // Soft delete the TodoItem
+        var now = DateTime.UtcNow;
+        todoItem.IsDeleted = true;
+        todoItem.DeletedAt = now;
+        todoItem.IsSyncPending = true;
+        todoItem.LastModified = now;
+
+        // Also mark the parent TodoList as pending since it contains changed items
+        todoList.IsSyncPending = true;
+        todoList.LastModified = now;
+
         await _context.SaveChangesAsync();
+        _logger.LogInformation("Soft deleted TodoItem {TodoItemId}", id);
         return true;
     }
 
 	public async Task MarkAsPendingAsync(long todoItemId)
 	{
-		var todoItem = await _context.TodoItem.FindAsync(todoItemId);
+		var todoItem = await _context.TodoItem
+			.FirstOrDefaultAsync(ti => ti.Id == todoItemId && !ti.IsDeleted);
 
 		if (todoItem is not null)
 		{
@@ -143,7 +160,8 @@ public class TodoItemService : ITodoItemService
 			todoItem.LastModified = DateTime.UtcNow;
 
 			// Also mark the parent TodoList as pending since it contains changed items
-			var todoList = await _context.TodoList.FindAsync(todoItem.TodoListId);
+			var todoList = await _context.TodoList
+				.FirstOrDefaultAsync(tl => tl.Id == todoItem.TodoListId && !tl.IsDeleted);
 
 			if (todoList is not null)
 			{
@@ -163,11 +181,12 @@ public class TodoItemService : ITodoItemService
 	}
 
 	public async Task<int> GetPendingChangesCountAsync()
-		=> await _context.TodoItem.CountAsync(ti => ti.IsSyncPending);
+		=> await _context.TodoItem.CountAsync(ti => ti.IsSyncPending && !ti.IsDeleted);
 
 	public async Task ClearPendingFlagAsync(long todoItemId)
 	{
-		var todoItem = await _context.TodoItem.FindAsync(todoItemId);
+		var todoItem = await _context.TodoItem
+			.FirstOrDefaultAsync(ti => ti.Id == todoItemId && !ti.IsDeleted);
 		if (todoItem is not null)
 		{
 			todoItem.IsSyncPending = false;

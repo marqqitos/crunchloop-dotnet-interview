@@ -40,6 +40,20 @@ public class TodoListBuilder
         return this;
     }
 
+    public TodoListBuilder WithSyncPending(bool isSyncPending)
+    {
+        _todoList.IsSyncPending = isSyncPending;
+        return this;
+    }
+
+    public TodoListBuilder WithDeleted(bool isDeleted)
+    {
+        _todoList.IsDeleted = isDeleted;
+        if (isDeleted)
+            _todoList.DeletedAt = DateTime.UtcNow;
+        return this;
+    }
+
     public TodoListBuilder WithItem(TodoItem item)
     {
         _todoList.Items.Add(item);

@@ -30,7 +30,7 @@ public class SyncBackgroundServiceTests
 
         _syncOptions = new SyncOptions
         {
-            SyncIntervalMinutes = 1, // Use 1 minute for faster tests
+            SyncIntervalSeconds = 1, // Use 1 minute for faster tests
             EnableBackgroundSync = true,
             MaxSyncDurationMinutes = 10,
             SyncOnStartup = false

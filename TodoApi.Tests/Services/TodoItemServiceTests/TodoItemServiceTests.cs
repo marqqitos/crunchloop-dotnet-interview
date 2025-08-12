@@ -163,7 +163,11 @@ public class TodoItemServiceTests
 
 		// Assert
 		Assert.True(ok);
-        Assert.Null(await _context.TodoItem.FindAsync(item.Id));
+        var deletedItem = await _context.TodoItem.FindAsync(item.Id);
+        Assert.NotNull(deletedItem);
+        Assert.True(deletedItem.IsDeleted);
+        Assert.NotNull(deletedItem.DeletedAt);
+        Assert.True(deletedItem.IsSyncPending);
     }
 
     [Fact]
@@ -241,6 +245,113 @@ public class TodoItemServiceTests
         // Assert
         // Service counts only TodoItems pending in GetPendingChangesCountAsync
         Assert.Equal(1, result);
+    }
+
+    [Fact]
+    public async Task DeleteTodoItemAsync_SoftDeletesItem_WhenExists()
+    {
+        // Arrange
+        var todoList = new TodoList { Name = "Test List" };
+        var todoItem = new TodoItem { Description = "Test Item", TodoListId = todoList.Id };
+        todoList.Items.Add(todoItem);
+        
+        _context.TodoList.Add(todoList);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.DeleteTodoItemAsync(todoList.Id, todoItem.Id);
+
+        // Assert
+        Assert.True(result);
+        
+        var deletedItem = await _context.TodoItem.FirstOrDefaultAsync(ti => ti.Id == todoItem.Id);
+        Assert.NotNull(deletedItem);
+        Assert.True(deletedItem.IsDeleted);
+        Assert.NotNull(deletedItem.DeletedAt);
+        Assert.True(deletedItem.IsSyncPending);
+        
+        // Verify parent list is also marked as pending
+        var parentList = await _context.TodoList.FindAsync(todoList.Id);
+        Assert.NotNull(parentList);
+        Assert.True(parentList.IsSyncPending);
+    }
+
+    [Fact]
+    public async Task GetTodoItemsAsync_ExcludesDeletedItems()
+    {
+        // Arrange
+        var todoList = new TodoList { Name = "Test List" };
+        var activeItem = new TodoItem { Description = "Active Item", TodoListId = todoList.Id };
+        var deletedItem = new TodoItem { Description = "Deleted Item", TodoListId = todoList.Id, IsDeleted = true, DeletedAt = DateTime.UtcNow };
+        
+        todoList.Items.Add(activeItem);
+        todoList.Items.Add(deletedItem);
+        _context.TodoList.Add(todoList);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetTodoItemsAsync(todoList.Id);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result);
+        Assert.Equal("Active Item", result.First().Description);
+    }
+
+    [Fact]
+    public async Task GetTodoItemAsync_ReturnsNull_WhenItemIsDeleted()
+    {
+        // Arrange
+        var todoList = new TodoList { Name = "Test List" };
+        var deletedItem = new TodoItem { Description = "Deleted Item", TodoListId = todoList.Id, IsDeleted = true, DeletedAt = DateTime.UtcNow };
+        
+        todoList.Items.Add(deletedItem);
+        _context.TodoList.Add(todoList);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.GetTodoItemAsync(todoList.Id, deletedItem.Id);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UpdateTodoItemAsync_ReturnsNull_WhenItemIsDeleted()
+    {
+        // Arrange
+        var todoList = new TodoList { Name = "Test List" };
+        var deletedItem = new TodoItem { Description = "Deleted Item", TodoListId = todoList.Id, IsDeleted = true, DeletedAt = DateTime.UtcNow };
+        
+        todoList.Items.Add(deletedItem);
+        _context.TodoList.Add(todoList);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var result = await _service.UpdateTodoItemAsync(todoList.Id, deletedItem.Id, new Dtos.UpdateTodoItem { Description = "Updated", Completed = true });
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetPendingChangesCountAsync_ExcludesDeletedItems()
+    {
+        // Arrange
+        var todoList = new TodoList { Name = "Test List" };
+        var pendingActiveItem = new TodoItem { Description = "Active Pending", TodoListId = todoList.Id, IsSyncPending = true };
+        var pendingDeletedItem = new TodoItem { Description = "Deleted Pending", TodoListId = todoList.Id, IsSyncPending = true, IsDeleted = true };
+        
+        todoList.Items.Add(pendingActiveItem);
+        todoList.Items.Add(pendingDeletedItem);
+        _context.TodoList.Add(todoList);
+        await _context.SaveChangesAsync();
+
+        // Act
+        var count = await _service.GetPendingChangesCountAsync();
+
+        // Assert
+        Assert.Equal(1, count);
     }
 }
 

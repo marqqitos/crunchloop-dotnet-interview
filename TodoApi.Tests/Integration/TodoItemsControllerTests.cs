@@ -388,10 +388,12 @@ public class TodoItemsControllerTests
 
             Assert.IsType<NoContentResult>(result);
 
-            // Verify the item was actually deleted from the database
-            Assert.Equal(2, context.TodoItem.Count()); // Originally had 3, now should have 2
+            // Verify the item was soft deleted from the database
+            Assert.Equal(3, context.TodoItem.Count()); // Still 3 items (soft delete)
             var deletedItem = await context.TodoItem.FindAsync(1L);
-            Assert.Null(deletedItem);
+            Assert.NotNull(deletedItem);
+            Assert.True(deletedItem.IsDeleted);
+            Assert.NotNull(deletedItem.DeletedAt);
         }
     }
 }

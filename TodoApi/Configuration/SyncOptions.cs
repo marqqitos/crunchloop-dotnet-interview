@@ -10,7 +10,7 @@ public class SyncOptions
     /// <summary>
     /// Interval between sync operations in minutes
     /// </summary>
-    public int SyncIntervalMinutes { get; set; } = 5;
+    public int SyncIntervalSeconds { get; set; } = 300;
 
     /// <summary>
     /// Whether to enable the background sync service

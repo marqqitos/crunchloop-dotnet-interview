@@ -29,7 +29,7 @@ public class SyncBackgroundService : BackgroundService
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 	{
 		_logger.LogInformation("Sync background service started. Sync interval: {IntervalMinutes} minutes",
-			_syncOptions.SyncIntervalMinutes);
+			_syncOptions.SyncIntervalSeconds);
 
 		while (!stoppingToken.IsCancellationRequested)
 		{
@@ -72,7 +72,7 @@ public class SyncBackgroundService : BackgroundService
 			// Wait for the configured interval before the next sync
 			try
 			{
-				var interval = TimeSpan.FromMinutes(_syncOptions.SyncIntervalMinutes);
+				var interval = TimeSpan.FromSeconds(_syncOptions.SyncIntervalSeconds);
 				await Task.Delay(interval, stoppingToken);
 			}
 			catch (OperationCanceledException)

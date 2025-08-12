@@ -11,4 +11,8 @@ public class TodoList
     public DateTime LastModified { get; set; } = DateTime.UtcNow;  // Track when locally modified
     public DateTime? LastSyncedAt { get; set; }       // Track when last synced with external API
     public bool IsSyncPending { get; set; } = false;  // Track if changes need to be synced
+    
+    // Deletion tracking fields
+    public bool IsDeleted { get; set; } = false;      // Track if item is marked for deletion
+    public DateTime? DeletedAt { get; set; }          // Track when item was deleted
 }

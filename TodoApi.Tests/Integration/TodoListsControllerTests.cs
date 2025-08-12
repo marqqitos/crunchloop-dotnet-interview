@@ -137,7 +137,12 @@ public class TodoListsControllerTests
             var result = await controller.DeleteTodoList(2);
 
             Assert.IsType<NoContentResult>(result);
-            Assert.Equal(1, context.TodoList.Count());
+            Assert.Equal(2, context.TodoList.Count()); // Both lists still exist (soft delete)
+            
+            // Verify the correct list was soft deleted
+            var deletedList = context.TodoList.First(tl => tl.Id == 2);
+            Assert.True(deletedList.IsDeleted);
+            Assert.NotNull(deletedList.DeletedAt);
         }
     }
 }
