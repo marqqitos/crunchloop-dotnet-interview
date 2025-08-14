@@ -26,7 +26,7 @@ public class SyncController : ControllerBase
         {
             _logger.LogInformation("Manual outbound sync triggered via API");
 
-            await _syncService.SyncTodoListsToExternalAsync();
+            await _syncService.SyncAllPendingTodoListsToExternal();
 
             return Ok(new { message = "Outbound TodoLists sync completed successfully" });
         }
@@ -47,7 +47,7 @@ public class SyncController : ControllerBase
         {
             _logger.LogInformation("Manual inbound sync triggered via API");
 
-            await _syncService.SyncTodoListsFromExternalAsync();
+            await _syncService.SyncAllPendingTodoListsFromExternal();
 
             return Ok(new { message = "Inbound TodoLists sync completed successfully" });
         }
@@ -68,7 +68,7 @@ public class SyncController : ControllerBase
         {
             _logger.LogInformation("Manual bidirectional sync triggered via API");
 
-            await _syncService.PerformFullSyncAsync();
+            await _syncService.PerformFullSync();
 
             return Ok(new { message = "Bidirectional TodoLists sync completed successfully" });
         }

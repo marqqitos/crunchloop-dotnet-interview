@@ -1,4 +1,6 @@
 using TodoApi.Dtos;
+using TodoApi.Dtos.External;
+using TodoApi.Models;
 
 namespace TodoApi.Services.TodoItemService;
 
@@ -12,7 +14,7 @@ public interface ITodoItemService
     Task<bool> DeleteTodoItemAsync(long todoListId, long id);
 	Task MarkAsPendingAsync(long todoItemId);
     Task ClearPendingFlagAsync(long todoItemId);
-    Task<int> GetPendingChangesCountAsync();
+    Task<IEnumerable<TodoItem>> GetOrphanedTodoItems(IEnumerable<string> externalItemIds);
 }
 
 

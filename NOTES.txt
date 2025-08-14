@@ -126,3 +126,5 @@ Validates data before and after synchronization operations to detect corruption 
 
 //Change Exceptions catched with custom ones
 //Asumo que cuando se crea o actualiza un item el valor updated_at de la lista tambien se actualiza
+//Escenario donde se crea una lista vacia y luego se le agregan items no se puede sincronizar porque la API externa no lo permite
+//Asumo que las descripciones para un item dentro de una lista son unicas (ver mejor forma de manejar esto, tal vez borrar la lista y volverla a crear localmente?)

@@ -163,7 +163,7 @@ public class TodoListServiceTests
         await _context.SaveChangesAsync();
 
         // Act
-        var result = await _service.GetPendingChangesCountAsync();
+        var result = (await _service.GetPendingSyncTodoLists()).Count();
 
         // Assert
         // Service counts only TodoLists pending
@@ -249,7 +249,7 @@ public class TodoListServiceTests
         await _context.SaveChangesAsync();
 
         // Act
-        var count = await _service.GetPendingChangesCountAsync();
+        var count = (await _service.GetPendingSyncTodoLists()).Count();
 
         // Assert
         Assert.Equal(1, count);

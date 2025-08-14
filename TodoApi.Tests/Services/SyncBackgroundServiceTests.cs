@@ -62,8 +62,7 @@ public class SyncBackgroundServiceTests
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(2)); // Cancel after 2 seconds
 
-		_mockTodoListService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(1);
-		_mockTodoItemService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(1);
+		_mockTodoListService.Setup(x => x.GetPendingSyncTodoLists()).ReturnsAsync(new List<TodoList>());
 
         // Act
         await _sut.StartAsync(cancellationTokenSource.Token);
@@ -71,7 +70,7 @@ public class SyncBackgroundServiceTests
         await _sut.StopAsync(cancellationTokenSource.Token);
 
         // Assert
-        _mockSyncService.Verify(x => x.PerformFullSyncAsync(), Times.AtLeast(1));
+        _mockSyncService.Verify(x => x.PerformFullSync(), Times.AtLeast(1));
     }
 
     [Fact]
@@ -81,10 +80,9 @@ public class SyncBackgroundServiceTests
         var mockOptions = new Mock<IOptions<SyncOptions>>();
         mockOptions.Setup(x => x.Value).Returns(_syncOptions);
 
-		_mockTodoListService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(1);
-		_mockTodoItemService.Setup(x => x.GetPendingChangesCountAsync()).ReturnsAsync(1);
+		_mockTodoListService.Setup(x => x.GetPendingSyncTodoLists()).ReturnsAsync(new List<TodoList>());
 
-        _mockSyncService.Setup(x => x.PerformFullSyncAsync())
+        _mockSyncService.Setup(x => x.PerformFullSync())
             .ThrowsAsync(new InvalidOperationException("Test exception"));
 
         var cancellationTokenSource = new CancellationTokenSource();
@@ -96,7 +94,7 @@ public class SyncBackgroundServiceTests
         await _sut.StopAsync(cancellationTokenSource.Token);
 
         // Verify that the service continued running despite the exception
-        _mockSyncService.Verify(x => x.PerformFullSyncAsync(), Times.AtLeast(1));
+        _mockSyncService.Verify(x => x.PerformFullSync(), Times.AtLeast(1));
     }
 
     [Fact]
@@ -114,7 +112,7 @@ public class SyncBackgroundServiceTests
         await _sut.StopAsync(cancellationTokenSource.Token);
 
         // Assert - Service should stop gracefully
-        _mockSyncService.Verify(x => x.PerformFullSyncAsync(), Times.AtMost(1));
+        _mockSyncService.Verify(x => x.PerformFullSync(), Times.AtMost(1));
     }
 
     [Fact]

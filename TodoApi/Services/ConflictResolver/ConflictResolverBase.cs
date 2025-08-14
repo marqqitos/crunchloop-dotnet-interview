@@ -68,7 +68,7 @@ public abstract class ConflictResolverBase<TLocal, TExternal> : IConflictResolve
                 // External is newer, apply changes
                 ApplyExternalChanges(localEntity, externalEntity);
                 UpdateLastModified(localEntity, GetExternalLastModified(externalEntity));
-                UpdateSyncTimestamp(localEntity);
+                UpdateSyncData(localEntity);
 
                 _logger.LogDebug("No conflict: Applied external changes to {EntityType} {EntityId}",
                     conflictInfo.EntityType, GetEntityId(localEntity));
@@ -76,7 +76,7 @@ public abstract class ConflictResolverBase<TLocal, TExternal> : IConflictResolve
             else
             {
                 // Local is newer or same, just update sync timestamp
-                UpdateSyncTimestamp(localEntity);
+                UpdateSyncData(localEntity);
 
                 _logger.LogDebug("No conflict: Local entity is newer or same for {EntityType} {EntityId} - only updating sync timestamp",
                     conflictInfo.EntityType, GetEntityId(localEntity));
@@ -91,7 +91,7 @@ public abstract class ConflictResolverBase<TLocal, TExternal> : IConflictResolve
         {
             ApplyExternalChanges(localEntity, externalEntity);
             UpdateLastModified(localEntity, GetExternalLastModified(externalEntity));
-            UpdateSyncTimestamp(localEntity);
+            UpdateSyncData(localEntity);
 
             _logger.LogInformation("Conflict resolved: External wins for {EntityType} {EntityId} - applied external changes. Reason: {Reason}",
                 conflictInfo.EntityType, GetEntityId(localEntity), conflictInfo.ResolutionReason);
@@ -101,7 +101,7 @@ public abstract class ConflictResolverBase<TLocal, TExternal> : IConflictResolve
             _logger.LogInformation("Conflict resolved: Local wins for {EntityType} {EntityId} - keeping local changes",
                 conflictInfo.EntityType, GetEntityId(localEntity));
 
-            UpdateSyncTimestamp(localEntity);
+            UpdateSyncData(localEntity);
         }
     }
 
@@ -143,7 +143,7 @@ public abstract class ConflictResolverBase<TLocal, TExternal> : IConflictResolve
     /// <summary>
     /// Updates only the sync timestamp on the local entity
     /// </summary>
-    protected abstract void UpdateSyncTimestamp(TLocal localEntity);
+    protected abstract void UpdateSyncData(TLocal localEntity);
 
     /// <summary>
     /// Updates the last modified timestamp on the local entity

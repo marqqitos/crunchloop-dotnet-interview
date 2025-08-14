@@ -37,7 +37,7 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
 
     public string SourceId => _options.SourceId;
 
-    public async Task<List<ExternalTodoList>> GetTodoListsAsync()
+    public async Task<IEnumerable<ExternalTodoList>> GetTodoListsAsync()
     {
         _logger.LogInformation("Fetching TodoLists from external API");
 
@@ -52,16 +52,16 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
             var todoLists = JsonSerializer.Deserialize<List<ExternalTodoList>>(json, _jsonOptions);
 
             _logger.LogInformation("Successfully fetched {Count} TodoLists from external API", todoLists?.Count ?? 0);
-            return todoLists ?? new List<ExternalTodoList>();
+            return todoLists ?? Enumerable.Empty<ExternalTodoList>();
         });
     }
 
-	public async Task<List<ExternalTodoList>> GetTodoListsPendingSync()
+	public async Task<IEnumerable<ExternalTodoList>> GetTodoListsPendingSync()
 	{
 		// Determine if we can use delta sync
 		var isDeltaSyncAvailable = await _syncStateService.IsDeltaSyncAvailableAsync();
 		DateTime? sinceTimestamp = null;
-		List<ExternalTodoList> externalTodoLists;
+		IEnumerable<ExternalTodoList> externalTodoLists;
 
 		if (isDeltaSyncAvailable)
 		{

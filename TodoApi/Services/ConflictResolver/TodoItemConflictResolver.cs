@@ -46,7 +46,7 @@ public class TodoItemConflictResolver : ConflictResolverBase<TodoItem, ExternalT
 
 	protected override string GetExternalEntityId(ExternalTodoItem externalEntity) => externalEntity.Id.ToString();
 
-	protected override void UpdateSyncTimestamp(TodoItem localEntity) => localEntity.LastSyncedAt = DateTime.UtcNow;
+	protected override void UpdateSyncData(TodoItem localEntity) => localEntity.LastSyncedAt = DateTime.UtcNow;
 
 	protected override void UpdateLastModified(TodoItem localEntity, DateTime newLastModified) => localEntity.LastModified = newLastModified;
 

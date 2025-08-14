@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Dtos;
+using TodoApi.Dtos.External;
 using TodoApi.Models;
 
 namespace TodoApi.Services.TodoListService;
@@ -107,7 +108,7 @@ public class TodoListService : ITodoListService
 	{
 		var todoList = await _context.TodoList
 			.Include(tl => tl.Items)
-			.FirstOrDefaultAsync(tl => tl.Id == id && !tl.IsDeleted);
+			.FirstOrDefaultAsync(tl => tl.Id == id);
 
 		if (todoList is null)
 			return false;
@@ -134,32 +135,30 @@ public class TodoListService : ITodoListService
 		return true;
 	}
 
-    public async Task MarkAsPendingAsync(long todoListId)
-    {
-        var todoList = await _context.TodoList
-			.FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
+	public async Task MarkAsPendingAsync(long todoListId)
+	{
+		var todoList = await _context.TodoList
+			.FirstOrDefaultAsync(tl => tl.Id == todoListId);
 
 		if (todoList is not null)
-        {
-            todoList.IsSyncPending = true;
-            todoList.LastModified = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+		{
+			todoList.IsSyncPending = true;
+			todoList.LastModified = DateTime.UtcNow;
+			await _context.SaveChangesAsync();
 
-            _logger.LogDebug("Marked TodoList {TodoListId} as pending sync", todoListId);
-        }
-        else
-        {
-            _logger.LogWarning("Attempted to mark non-existent TodoList {TodoListId} as pending", todoListId);
-        }
-    }
-
-	public async Task<int> GetPendingChangesCountAsync()
-		=> await _context.TodoList.CountAsync(tl => tl.IsSyncPending && !tl.IsDeleted);
+			_logger.LogDebug("Marked TodoList {TodoListId} as pending sync", todoListId);
+		}
+		else
+		{
+			_logger.LogWarning("Attempted to mark non-existent TodoList {TodoListId} as pending", todoListId);
+		}
+	}
 
 	public async Task ClearPendingFlagAsync(long todoListId)
 	{
 		var todoList = await _context.TodoList
-			.FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
+			.FirstOrDefaultAsync(tl => tl.Id == todoListId);
+
 		if (todoList is not null)
 		{
 			todoList.IsSyncPending = false;
@@ -169,6 +168,52 @@ public class TodoListService : ITodoListService
 			_logger.LogDebug("Cleared pending flag for TodoList {TodoListId}", todoListId);
 		}
 	}
+
+	public async Task<IEnumerable<TodoList>> GetPendingSyncTodoLists()
+	{
+		var pendingTodoLists = await _context.TodoList
+				.Where(tl => tl.IsSyncPending ||
+							tl.Items.Any(item => item.IsSyncPending))
+				.Include(tl => tl.Items)
+				.ToListAsync();
+
+		return pendingTodoLists;
+	}
+
+	public async Task<bool> ExternalTodoListsMismatch(IEnumerable<ExternalTodoList> externalTodoLists)
+	{
+		var localTodoLists = await _context.TodoList.Where(tl => !tl.IsDeleted).ToListAsync();
+
+		if (externalTodoLists.Count() != localTodoLists.Count())
+			return true;
+
+		foreach (var externalTodoList in externalTodoLists)
+		{
+			var localTodoList = localTodoLists.FirstOrDefault(tl => tl.ExternalId == externalTodoList.Id);
+			if (localTodoList is null)
+				return true;
+		}
+
+		foreach (var localTodoList in localTodoLists)
+		{
+			var externalTodoList = externalTodoLists.FirstOrDefault(tl => tl.Id == localTodoList.ExternalId);
+			if (externalTodoList is null)
+				return true;
+		}
+
+		return false;
+	}
+
+	public async Task<TodoList?> GetTodoListByExternalIdAsync(string externalId)
+		=> await _context.TodoList
+			.Include(tl => tl.Items)
+			.FirstOrDefaultAsync(tl => tl.ExternalId == externalId);
+
+	public async Task<IEnumerable<TodoList>> GetOrphanedTodoListsAsync(IEnumerable<string> externalListIds)
+		=> await _context.TodoList
+            .Where(tl => !tl.IsDeleted && !string.IsNullOrEmpty(tl.ExternalId) && !externalListIds.Contains(tl.ExternalId))
+            .Include(tl => tl.Items.Where(item => !item.IsDeleted))
+            .ToListAsync();
 }
 
 

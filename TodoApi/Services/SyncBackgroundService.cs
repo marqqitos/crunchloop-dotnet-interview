@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Options;
 using TodoApi.Configuration;
+using TodoApi.Dtos.External;
+using TodoApi.Models;
 using TodoApi.Services.ExternalTodoApiClient;
 using TodoApi.Services.SyncService;
 using TodoApi.Services.TodoItemService;
@@ -41,23 +43,26 @@ public class SyncBackgroundService : BackgroundService
 				var syncService = scope.ServiceProvider.GetRequiredService<ISyncService>();
 
 				// Check if there are pending changes before performing sync
-				var pendingCount = await AreLocalChangesPendingSync(scope.ServiceProvider);
+				var todoLists = await GetLocalChangesPendingSync(scope.ServiceProvider);
 
-				if (pendingCount > 0)
+				if (todoLists.Any())
 				{
-					_logger.LogInformation("Found {PendingCount} pending local changes, performing sync", pendingCount);
-					await syncService.PerformFullSyncAsync();
+					_logger.LogInformation("Found pending local changes, performing sync");
+					await syncService.SyncTodoListsToExternal(todoLists);
 				}
-				else
-				{
-					pendingCount = await AreExternalChangesPendingSync(scope.ServiceProvider);
-					_logger.LogInformation("Found {PendingCount} pending external changes, performing sync", pendingCount);
 
-					if (pendingCount > 0)
-						await syncService.PerformFullSyncAsync();
-					else
+				var externalTodoLists = await GetExternalChangesPendingSync(scope.ServiceProvider);
+
+				if (externalTodoLists.Any())
+				{
+					await syncService.SyncTodoListsFromExternal(externalTodoLists);
+					_logger.LogInformation("Found pending external changes, performing sync");
+				}
+
+				await syncService.DetectAndHandleExternalDeletions();
+				
+				if (!todoLists.Any() && !externalTodoLists.Any())
 					_logger.LogDebug("No pending changes found, skipping sync");
-				}
 
 				_logger.LogInformation("Periodic sync completed successfully at {Timestamp}", DateTime.UtcNow);
 			}
@@ -84,22 +89,20 @@ public class SyncBackgroundService : BackgroundService
 		}
 	}
 
-	private async Task<int> AreLocalChangesPendingSync(IServiceProvider serviceProvider)
+	private async Task<IEnumerable<TodoList>> GetLocalChangesPendingSync(IServiceProvider serviceProvider)
 	{
 		var todoListService = serviceProvider.GetRequiredService<ITodoListService>();
-		var todoItemService = serviceProvider.GetRequiredService<ITodoItemService>();
-		
-		var todoListPendingChangesCount = await todoListService.GetPendingChangesCountAsync();
-		var todoItemPendingChangesCount = await todoItemService.GetPendingChangesCountAsync();
-		var pendingCount = todoListPendingChangesCount + todoItemPendingChangesCount;
-		return pendingCount;
+		var pendingTodoLists = await todoListService.GetPendingSyncTodoLists();
+
+		return pendingTodoLists;
 	}
 
-	private async Task<int> AreExternalChangesPendingSync(IServiceProvider serviceProvider)
+	private async Task<IEnumerable<ExternalTodoList>> GetExternalChangesPendingSync(IServiceProvider serviceProvider)
 	{
 		var externalApiClient = serviceProvider.GetRequiredService<IExternalTodoApiClient>();
 		var externalTodoLists = await externalApiClient.GetTodoListsPendingSync();
-		return externalTodoLists.Count;
+
+		return externalTodoLists;
 	}
 
 	public override async Task StopAsync(CancellationToken cancellationToken)

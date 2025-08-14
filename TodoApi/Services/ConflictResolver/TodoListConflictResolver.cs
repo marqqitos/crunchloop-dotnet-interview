@@ -62,8 +62,9 @@ public class TodoListConflictResolver : ConflictResolverBase<TodoList, ExternalT
         localEntity.LastSyncedAt = DateTime.UtcNow;
     }
 
-    protected override void UpdateSyncTimestamp(TodoList localEntity)
+    protected override void UpdateSyncData(TodoList localEntity)
     {
+        localEntity.IsSyncPending = false;
         localEntity.LastSyncedAt = DateTime.UtcNow;
     }
 

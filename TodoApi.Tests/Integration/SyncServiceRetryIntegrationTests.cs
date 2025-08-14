@@ -105,7 +105,7 @@ public class RetryIntegrationTests : IAsyncDisposable
             });
 
         // Act
-        await _syncService.SyncTodoListsToExternalAsync();
+        await _syncService.SyncAllPendingTodoListsToExternal();
 
         // Assert
         Assert.Equal(2, callCount);
@@ -136,7 +136,7 @@ public class RetryIntegrationTests : IAsyncDisposable
             });
 
         // Act & Assert
-        await _syncService.SyncTodoListsToExternalAsync();
+        await _syncService.SyncAllPendingTodoListsToExternal();
 
         // Should have retried the configured number of times
         Assert.Equal(3, callCount); // Initial attempt + 2 retries
@@ -179,7 +179,7 @@ public class RetryIntegrationTests : IAsyncDisposable
         var realSyncService = CreateSyncServiceWithRealExternalClient(realExternalClient);
 
         // Act
-        await realSyncService.SyncTodoListsFromExternalAsync();
+        await realSyncService.SyncAllPendingTodoListsFromExternal();
 
         // Assert
         Assert.Equal(2, callCount);
@@ -224,7 +224,7 @@ public class RetryIntegrationTests : IAsyncDisposable
         var realSyncService = CreateSyncServiceWithRealExternalClient(realExternalClient);
 
         // Act
-        await realSyncService.SyncTodoListsFromExternalAsync();
+        await realSyncService.SyncAllPendingTodoListsFromExternal();
 
         // Assert
         Assert.Equal(3, callCount);

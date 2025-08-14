@@ -82,7 +82,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
 
         // Act
-        var result = await _client.GetTodoListsAsync();
+        var result = (await _client.GetTodoListsAsync()).ToList();
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -323,7 +323,7 @@ public class ExternalTodoApiClientTests : IDisposable
         _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(false);
 
         // Act
-        var result = await _client.GetTodoListsPendingSync();
+        var result = (await _client.GetTodoListsPendingSync()).ToList();
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -366,7 +366,7 @@ public class ExternalTodoApiClientTests : IDisposable
         _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(lastSyncTimestamp);
 
         // Act
-        var result = await _client.GetTodoListsPendingSync();
+        var result = (await _client.GetTodoListsPendingSync()).ToList();
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -403,7 +403,7 @@ public class ExternalTodoApiClientTests : IDisposable
         _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync((DateTime?)null);
 
         // Act
-        var result = await _client.GetTodoListsPendingSync();
+        var result = (await _client.GetTodoListsPendingSync()).ToList();
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -424,7 +424,7 @@ public class ExternalTodoApiClientTests : IDisposable
         _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(DateTime.UtcNow.AddHours(-1));
 
         // Act
-        var result = await _client.GetTodoListsPendingSync();
+        var result = (await _client.GetTodoListsPendingSync()).ToList();
 
         // Assert
         Assert.Empty(result);
@@ -469,11 +469,11 @@ public class ExternalTodoApiClientTests : IDisposable
         _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(lastSyncTimestamp);
 
         // Act
-        var result = await _client.GetTodoListsPendingSync();
+        var result = (await _client.GetTodoListsPendingSync()).ToList();
 
         // Assert
         Assert.Single(result);
-        Assert.Equal("Recent List", result[0].Name);
+        Assert.Equal("Recent List", result.First().Name);
 
         VerifyHttpRequest(HttpMethod.Get, "/todolists");
         _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
