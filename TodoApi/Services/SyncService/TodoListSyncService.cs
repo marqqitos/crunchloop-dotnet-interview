@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using TodoApi.Common;
 using TodoApi.Dtos.External;
 using TodoApi.Models;
@@ -45,17 +44,114 @@ public class TodoListSyncService : ISyncService
         _logger = logger;
     }
 
-    public async Task SyncAllPendingTodoListsToExternal()
-        => await SyncToExternalAPI();
+    public async Task SyncTodoListsToExternal()
+    {
+        _logger.LogInformation("Starting one-way sync of TodoLists to external API");
 
-    public async Task SyncTodoListsToExternal(IEnumerable<TodoList> todoListsToSync)
-        => await SyncToExternalAPI(todoListsToSync);
+        try
+        {
+            // Find TodoLists that have pending changes or haven't been synced yet
+            // OR lists that have any items with pending changes or haven't been synced yet
+            var pendingTodoLists = await _todoListService.GetTodoListsPendingSync();
 
-    public async Task SyncAllPendingTodoListsFromExternal()
-        => await SyncFromExternal();
+            if (!pendingTodoLists.Any())
+            {
+                _logger.LogInformation("No unsynced TodoLists found");
+                return;
+            }
 
-    public async Task SyncTodoListsFromExternal(IEnumerable<ExternalTodoList> externalTodoListsToSync)
-        => await SyncFromExternal(externalTodoListsToSync);
+            _logger.LogInformation("Found {Count} TodoLists with pending changes to sync", pendingTodoLists.Count());
+
+            var syncedCount = 0;
+            var failedCount = 0;
+
+            var syncRetryPolicy = _retryPolicyService.GetSyncRetryPolicy();
+
+            foreach (var todoList in pendingTodoLists)
+            {
+                try
+                {
+                    await syncRetryPolicy.ExecuteAsync(async cancellationToken =>
+                    {
+                        await SyncSingleTodoListAsync(todoList);
+                    });
+                    syncedCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to sync TodoList {TodoListId} '{Name}' after retries",
+                        todoList.Id, todoList.Name);
+                    failedCount++;
+                }
+            }
+
+            _logger.LogInformation("Sync completed. Success: {SyncedCount}, Failed: {FailedCount}",
+                syncedCount, failedCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sync TodoLists to external API");
+            throw;
+        }
+    }
+
+    public async Task SyncTodoListsFromExternal()
+    {
+        _logger.LogInformation("Starting inbound sync of TodoLists from external API");
+
+        try
+        {
+            var externalTodoLists = await _externalApiClient.GetTodoListsPendingSync();
+
+            if (!externalTodoLists.Any())
+            {
+                _logger.LogInformation("No TodoLists found in external API");
+                return;
+            }
+
+            _logger.LogInformation("Found {Count} TodoLists in external API", externalTodoLists.Count());
+
+            var createdCount = 0;
+            var updatedCount = 0;
+            var failedCount = 0;
+
+            // Process existing external lists
+            foreach (var externalTodoList in externalTodoLists)
+            {
+                try
+                {
+                    var result = await SyncSingleTodoListFromExternalAsync(externalTodoList);
+                    if (result.IsCreated)
+                        createdCount++;
+                    else if (result.IsUpdated)
+                        updatedCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to sync external TodoList '{ExternalId}' '{Name}'",
+                        externalTodoList.Id, externalTodoList.Name);
+                    failedCount++;
+                }
+            }
+
+            // Update sync timestamp after successful sync
+            if (createdCount > 0 || updatedCount > 0)
+            {
+                var syncTimestamp = DateTime.UtcNow;
+                await _syncStateService.UpdateLastSyncTimestampAsync(syncTimestamp);
+                _logger.LogInformation("Updated sync timestamp to {SyncTimestamp} after processing {TotalCount} entities",
+                    syncTimestamp, createdCount + updatedCount);
+            }
+
+            _logger.LogInformation("Inbound sync completed. Created: {CreatedCount}, Updated: {UpdatedCount}, Failed: {FailedCount}",
+                createdCount, updatedCount, failedCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sync TodoLists from external API");
+            throw;
+        }
+    }
 
     public async Task PerformFullSync()
     {
@@ -64,10 +160,10 @@ public class TodoListSyncService : ISyncService
         try
         {
             _logger.LogInformation("Syncing local changes/unsynced lists to external API");
-            await SyncAllPendingTodoListsToExternal();
+            await SyncTodoListsToExternal();
 
             _logger.LogInformation("Syncing external changes to local database");
-            await SyncAllPendingTodoListsFromExternal();
+            await SyncTodoListsFromExternal();
 
             _logger.LogInformation("Bidirectional sync completed successfully");
         }
@@ -128,121 +224,6 @@ public class TodoListSyncService : ISyncService
             await CommitChanges();
             _logger.LogInformation("Soft deleted {DeletedCount} TodoLists that were deleted externally", deletedCount);
         }
-    }
-
-    private async Task<bool> SyncToExternalAPI(IEnumerable<TodoList>? todoListsToSync = null)
-    {
-        _logger.LogInformation("Starting one-way sync of TodoLists to external API");
-
-        try
-        {
-            // Find TodoLists that have pending changes or haven't been synced yet
-            // OR lists that have any items with pending changes or haven't been synced yet
-            var pendingTodoLists = todoListsToSync ?? await _todoListService.GetPendingSyncTodoLists();
-
-            if (!pendingTodoLists.Any())
-            {
-                _logger.LogInformation("No unsynced TodoLists found");
-                return false;
-            }
-
-            _logger.LogInformation("Found {Count} TodoLists with pending changes to sync", pendingTodoLists.Count());
-
-            var syncedCount = 0;
-            var failedCount = 0;
-
-            var syncRetryPolicy = _retryPolicyService.GetSyncRetryPolicy();
-
-            foreach (var todoList in pendingTodoLists)
-            {
-                try
-                {
-                    await syncRetryPolicy.ExecuteAsync(async cancellationToken =>
-                    {
-                        await SyncSingleTodoListAsync(todoList);
-                    });
-                    syncedCount++;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to sync TodoList {TodoListId} '{Name}' after retries",
-                        todoList.Id, todoList.Name);
-                    failedCount++;
-                }
-            }
-
-            _logger.LogInformation("Sync completed. Success: {SyncedCount}, Failed: {FailedCount}",
-                syncedCount, failedCount);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to sync TodoLists to external API");
-            throw;
-        }
-
-        return true;
-    }
-
-    private async Task<bool> SyncFromExternal(IEnumerable<ExternalTodoList>? externalTodoListsToSync = null)
-    {
-        _logger.LogInformation("Starting inbound sync of TodoLists from external API");
-
-        try
-        {
-            var externalTodoLists = externalTodoListsToSync ?? await _externalApiClient.GetTodoListsPendingSync();
-
-            var externalListCount = externalTodoLists?.Count() ?? 0;
-
-            if (externalListCount == 0)
-            {
-                _logger.LogInformation("No TodoLists found in external API");
-                return false;
-            }
-
-            _logger.LogInformation("Found {Count} TodoLists in external API", externalListCount);
-
-            var createdCount = 0;
-            var updatedCount = 0;
-            var failedCount = 0;
-
-            // Process existing external lists
-            foreach (var externalTodoList in externalTodoLists!)
-            {
-                try
-                {
-                    var result = await SyncSingleTodoListFromExternalAsync(externalTodoList);
-                    if (result.IsCreated)
-                        createdCount++;
-                    else if (result.IsUpdated)
-                        updatedCount++;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to sync external TodoList '{ExternalId}' '{Name}'",
-                        externalTodoList.Id, externalTodoList.Name);
-                    failedCount++;
-                }
-            }
-
-            // Update sync timestamp after successful sync
-            if (createdCount > 0 || updatedCount > 0)
-            {
-                var syncTimestamp = DateTime.UtcNow;
-                await _syncStateService.UpdateLastSyncTimestampAsync(syncTimestamp);
-                _logger.LogInformation("Updated sync timestamp to {SyncTimestamp} after processing {TotalCount} entities",
-                    syncTimestamp, createdCount + updatedCount);
-            }
-
-            _logger.LogInformation("Inbound sync completed. Created: {CreatedCount}, Updated: {UpdatedCount}, Failed: {FailedCount}",
-                createdCount, updatedCount, failedCount);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to sync TodoLists from external API");
-            throw;
-        }
-
-        return true;
     }
 
     private async Task CommitChanges()

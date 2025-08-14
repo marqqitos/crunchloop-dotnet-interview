@@ -13,7 +13,7 @@ public interface ITodoListService
     Task<bool> DeleteTodoListAsync(long id);
 	Task MarkAsPendingAsync(long todoListId);
 	Task ClearPendingFlagAsync(long todoListId);
-    Task<IEnumerable<TodoList>> GetPendingSyncTodoLists();
+    Task<IEnumerable<TodoList>> GetTodoListsPendingSync();
     Task<bool> ExternalTodoListsMismatch(IEnumerable<ExternalTodoList> externalTodoLists);
     Task<TodoList?> GetTodoListByExternalIdAsync(string externalId);
     Task<IEnumerable<TodoList>> GetOrphanedTodoListsAsync(IEnumerable<string> externalListIds);

@@ -2,7 +2,7 @@ namespace TodoApi.Tests.Builders;
 
 public class TodoListBuilder
 {
-    private TodoList _todoList = new TodoList { Name = "Test List" };
+    private TodoList _todoList = new TodoList { Name = "Test List", IsSyncPending = true };
 
     public TodoListBuilder WithId(int id)
     {

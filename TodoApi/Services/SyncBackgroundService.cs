@@ -1,11 +1,6 @@
 using Microsoft.Extensions.Options;
 using TodoApi.Configuration;
-using TodoApi.Dtos.External;
-using TodoApi.Models;
-using TodoApi.Services.ExternalTodoApiClient;
 using TodoApi.Services.SyncService;
-using TodoApi.Services.TodoItemService;
-using TodoApi.Services.TodoListService;
 
 namespace TodoApi.Services;
 
@@ -42,27 +37,9 @@ public class SyncBackgroundService : BackgroundService
 				using var scope = _serviceScopeFactory.CreateScope();
 				var syncService = scope.ServiceProvider.GetRequiredService<ISyncService>();
 
-				// Check if there are pending changes before performing sync
-				var todoLists = await GetLocalChangesPendingSync(scope.ServiceProvider);
-
-				if (todoLists.Any())
-				{
-					_logger.LogInformation("Found pending local changes, performing sync");
-					await syncService.SyncTodoListsToExternal(todoLists);
-				}
-
-				var externalTodoLists = await GetExternalChangesPendingSync(scope.ServiceProvider);
-
-				if (externalTodoLists.Any())
-				{
-					await syncService.SyncTodoListsFromExternal(externalTodoLists);
-					_logger.LogInformation("Found pending external changes, performing sync");
-				}
+				await syncService.PerformFullSync();
 
 				await syncService.DetectAndHandleExternalDeletions();
-				
-				if (!todoLists.Any() && !externalTodoLists.Any())
-					_logger.LogDebug("No pending changes found, skipping sync");
 
 				_logger.LogInformation("Periodic sync completed successfully at {Timestamp}", DateTime.UtcNow);
 			}
@@ -87,22 +64,6 @@ public class SyncBackgroundService : BackgroundService
 				break;
 			}
 		}
-	}
-
-	private async Task<IEnumerable<TodoList>> GetLocalChangesPendingSync(IServiceProvider serviceProvider)
-	{
-		var todoListService = serviceProvider.GetRequiredService<ITodoListService>();
-		var pendingTodoLists = await todoListService.GetPendingSyncTodoLists();
-
-		return pendingTodoLists;
-	}
-
-	private async Task<IEnumerable<ExternalTodoList>> GetExternalChangesPendingSync(IServiceProvider serviceProvider)
-	{
-		var externalApiClient = serviceProvider.GetRequiredService<IExternalTodoApiClient>();
-		var externalTodoLists = await externalApiClient.GetTodoListsPendingSync();
-
-		return externalTodoLists;
 	}
 
 	public override async Task StopAsync(CancellationToken cancellationToken)

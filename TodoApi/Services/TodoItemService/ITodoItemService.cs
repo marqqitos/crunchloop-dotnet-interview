@@ -1,5 +1,4 @@
 using TodoApi.Dtos;
-using TodoApi.Dtos.External;
 using TodoApi.Models;
 
 namespace TodoApi.Services.TodoItemService;

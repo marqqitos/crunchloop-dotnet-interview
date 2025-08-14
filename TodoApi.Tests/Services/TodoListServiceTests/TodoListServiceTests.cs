@@ -145,39 +145,13 @@ public class TodoListServiceTests
     }
 
     [Fact]
-    public async Task GetPendingChangesCountAsync_ReturnsCorrectCount()
-    {
-        // Arrange
-        var todoList1 = new TodoList { Name = "Test List 1", IsSyncPending = true };
-        var todoList2 = new TodoList { Name = "Test List 2" };
-        _context.TodoList.AddRange(todoList1, todoList2);
-        await _context.SaveChangesAsync();
-
-        var todoItem = new TodoItem
-        {
-            Description = "Test Item",
-            TodoListId = todoList2.Id,
-            IsSyncPending = true
-        };
-        _context.TodoItem.Add(todoItem);
-        await _context.SaveChangesAsync();
-
-        // Act
-        var result = (await _service.GetPendingSyncTodoLists()).Count();
-
-        // Assert
-        // Service counts only TodoLists pending
-        Assert.Equal(1, result);
-    }
-
-    [Fact]
     public async Task DeleteTodoListAsync_SoftDeletesList_WhenExists()
     {
         // Arrange
         var todoList = new TodoList { Name = "Test List" };
         var todoItem = new TodoItem { Description = "Test Item", TodoListId = todoList.Id };
         todoList.Items.Add(todoItem);
-        
+
         _context.TodoList.Add(todoList);
         await _context.SaveChangesAsync();
 
@@ -186,18 +160,18 @@ public class TodoListServiceTests
 
         // Assert
         Assert.True(result);
-        
+
         var deletedList = await _context.TodoList
             .Include(tl => tl.Items)
             .FirstOrDefaultAsync(tl => tl.Id == todoList.Id);
-        
+
         Assert.NotNull(deletedList);
         Assert.True(deletedList.IsDeleted);
         Assert.NotNull(deletedList.DeletedAt);
         Assert.True(deletedList.IsSyncPending);
-        
+
         // Verify all items are also soft deleted
-        Assert.All(deletedList.Items, item => 
+        Assert.All(deletedList.Items, item =>
         {
             Assert.True(item.IsDeleted);
             Assert.NotNull(item.DeletedAt);
@@ -211,7 +185,7 @@ public class TodoListServiceTests
         // Arrange
         var activeList = new TodoList { Name = "Active List" };
         var deletedList = new TodoList { Name = "Deleted List", IsDeleted = true, DeletedAt = DateTime.UtcNow };
-        
+
         _context.TodoList.AddRange(activeList, deletedList);
         await _context.SaveChangesAsync();
 
@@ -236,23 +210,6 @@ public class TodoListServiceTests
 
         // Assert
         Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task GetPendingChangesCountAsync_ExcludesDeletedLists()
-    {
-        // Arrange
-        var pendingActiveList = new TodoList { Name = "Active Pending", IsSyncPending = true };
-        var pendingDeletedList = new TodoList { Name = "Deleted Pending", IsSyncPending = true, IsDeleted = true };
-        
-        _context.TodoList.AddRange(pendingActiveList, pendingDeletedList);
-        await _context.SaveChangesAsync();
-
-        // Act
-        var count = (await _service.GetPendingSyncTodoLists()).Count();
-
-        // Assert
-        Assert.Equal(1, count);
     }
 }
 

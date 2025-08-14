@@ -83,6 +83,8 @@ public class RetryIntegrationTests : IAsyncDisposable
         _context.TodoList.Add(todoList);
         await _context.SaveChangesAsync();
 
+		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList });
+
         var callCount = 0;
         var expectedResult = ExternalTodoListBuilder.Create()
             .WithId("ext-123")
@@ -105,7 +107,7 @@ public class RetryIntegrationTests : IAsyncDisposable
             });
 
         // Act
-        await _syncService.SyncAllPendingTodoListsToExternal();
+        await _syncService.SyncTodoListsToExternal();
 
         // Assert
         Assert.Equal(2, callCount);
@@ -127,6 +129,8 @@ public class RetryIntegrationTests : IAsyncDisposable
         _context.TodoList.Add(todoList);
         await _context.SaveChangesAsync();
 
+		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList });
+
         var callCount = 0;
         _mockExternalClient.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
             .Returns(() =>
@@ -136,7 +140,7 @@ public class RetryIntegrationTests : IAsyncDisposable
             });
 
         // Act & Assert
-        await _syncService.SyncAllPendingTodoListsToExternal();
+        await _syncService.SyncTodoListsToExternal();
 
         // Should have retried the configured number of times
         Assert.Equal(3, callCount); // Initial attempt + 2 retries
@@ -179,7 +183,7 @@ public class RetryIntegrationTests : IAsyncDisposable
         var realSyncService = CreateSyncServiceWithRealExternalClient(realExternalClient);
 
         // Act
-        await realSyncService.SyncAllPendingTodoListsFromExternal();
+        await realSyncService.SyncTodoListsFromExternal();
 
         // Assert
         Assert.Equal(2, callCount);
@@ -224,7 +228,7 @@ public class RetryIntegrationTests : IAsyncDisposable
         var realSyncService = CreateSyncServiceWithRealExternalClient(realExternalClient);
 
         // Act
-        await realSyncService.SyncAllPendingTodoListsFromExternal();
+        await realSyncService.SyncTodoListsFromExternal();
 
         // Assert
         Assert.Equal(3, callCount);

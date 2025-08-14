@@ -169,7 +169,7 @@ public class TodoListService : ITodoListService
 		}
 	}
 
-	public async Task<IEnumerable<TodoList>> GetPendingSyncTodoLists()
+	public async Task<IEnumerable<TodoList>> GetTodoListsPendingSync()
 	{
 		var pendingTodoLists = await _context.TodoList
 				.Where(tl => tl.IsSyncPending ||

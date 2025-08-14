@@ -2,7 +2,7 @@ namespace TodoApi.Tests.Builders;
 
 public class TodoItemBuilder
 {
-    private TodoItem _todoItem = new TodoItem { Description = "Description" };
+    private TodoItem _todoItem = new TodoItem { Description = "Description", IsSyncPending = true };
 
     public TodoItemBuilder WithId(int id)
     {
@@ -43,6 +43,12 @@ public class TodoItemBuilder
     public TodoItemBuilder WithLastSyncedAt(DateTime lastSyncedAt)
     {
         _todoItem.LastSyncedAt = lastSyncedAt;
+        return this;
+    }
+
+    public TodoItemBuilder WithIsSyncPending(bool isSyncPending)
+    {
+        _todoItem.IsSyncPending = isSyncPending;
         return this;
     }
 
