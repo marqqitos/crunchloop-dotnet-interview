@@ -37,7 +37,7 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
 
     public string SourceId => _options.SourceId;
 
-    public async Task<IEnumerable<ExternalTodoList>> GetTodoListsAsync()
+    public async Task<IEnumerable<ExternalTodoList>> GetTodoLists()
     {
         _logger.LogInformation("Fetching TodoLists from external API");
 
@@ -59,26 +59,26 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
 	public async Task<IEnumerable<ExternalTodoList>> GetTodoListsPendingSync()
 	{
 		// Determine if we can use delta sync
-		var isDeltaSyncAvailable = await _syncStateService.IsDeltaSyncAvailableAsync();
+		var isDeltaSyncAvailable = await _syncStateService.IsDeltaSyncAvailable();
 		DateTime? sinceTimestamp = null;
 		IEnumerable<ExternalTodoList> externalTodoLists;
 
 		if (isDeltaSyncAvailable)
 		{
-			sinceTimestamp = await _syncStateService.GetLastSyncTimestampAsync();
+			sinceTimestamp = await _syncStateService.GetLastSyncTimestamp();
 			_logger.LogInformation("Using delta sync (client-side) - fetching all TodoLists and filtering by {SinceTimestamp}", sinceTimestamp);
 		}
 
 		// Always fetch all, then filter locally when delta is available
-		var allExternalLists = await GetTodoListsAsync();
+		var allExternalLists = await GetTodoLists();
 		externalTodoLists = isDeltaSyncAvailable && sinceTimestamp.HasValue
 			? allExternalLists.Where(tl => tl.UpdatedAt > sinceTimestamp.Value || tl.Items.Any(i => i.UpdatedAt > sinceTimestamp.Value)).ToList()
 			: allExternalLists;
-            
+
 		return externalTodoLists;
 	}
 
-    public async Task<ExternalTodoList> CreateTodoListAsync(CreateExternalTodoList createDto)
+    public async Task<ExternalTodoList> CreateTodoList(CreateExternalTodoList createDto)
     {
         _logger.LogInformation("Creating TodoList '{Name}' in external API", createDto.Name);
 
@@ -100,7 +100,7 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
         });
     }
 
-    public async Task<ExternalTodoList> UpdateTodoListAsync(string externalId, UpdateExternalTodoList updateDto)
+    public async Task<ExternalTodoList> UpdateTodoList(string externalId, UpdateExternalTodoList updateDto)
     {
         _logger.LogInformation("Updating TodoList '{ExternalId}' in external API", externalId);
 
@@ -122,7 +122,7 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
         });
     }
 
-    public async Task DeleteTodoListAsync(string externalId)
+    public async Task DeleteTodoList(string externalId)
     {
         _logger.LogInformation("Deleting TodoList '{ExternalId}' from external API", externalId);
 
@@ -137,7 +137,7 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
         });
     }
 
-    public async Task<ExternalTodoItem> UpdateTodoItemAsync(string todoListId, string todoItemId, UpdateExternalTodoItem updateDto)
+    public async Task<ExternalTodoItem> UpdateTodoItem(string todoListId, string todoItemId, UpdateExternalTodoItem updateDto)
     {
         _logger.LogInformation("Updating TodoItem '{TodoItemId}' in TodoList '{TodoListId}' via external API", todoItemId, todoListId);
 
@@ -159,7 +159,7 @@ public class ExternalTodoApiClient : IExternalTodoApiClient
         });
     }
 
-    public async Task DeleteTodoItemAsync(string todoListId, string todoItemId)
+    public async Task DeleteTodoItem(string todoListId, string todoItemId)
     {
         _logger.LogInformation("Deleting TodoItem '{TodoItemId}' from TodoList '{TodoListId}' via external API", todoItemId, todoListId);
 

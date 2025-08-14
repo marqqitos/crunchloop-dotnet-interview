@@ -15,10 +15,10 @@ public class TodoItemService : ITodoItemService
         _logger = logger;
     }
 
-    public async Task<bool> TodoListExistsAsync(long todoListId)
+    public async Task<bool> TodoListExists(long todoListId)
         => await _context.TodoList.AnyAsync(t => t.Id == todoListId && !t.IsDeleted);
 
-    public async Task<IList<TodoItemResponse>?> GetTodoItemsAsync(long todoListId)
+    public async Task<IList<TodoItemResponse>?> GetTodoItems(long todoListId)
     {
         var todoList = await _context.TodoList
             .FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
@@ -40,7 +40,7 @@ public class TodoItemService : ITodoItemService
         return items;
     }
 
-    public async Task<TodoItemResponse?> GetTodoItemAsync(long todoListId, long id)
+    public async Task<TodoItemResponse?> GetTodoItemById(long todoListId, long id)
     {
         var todoList = await _context.TodoList
             .FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
@@ -62,7 +62,7 @@ public class TodoItemService : ITodoItemService
         return todoItem;
     }
 
-    public async Task<TodoItemResponse?> UpdateTodoItemAsync(long todoListId, long id, UpdateTodoItem payload)
+    public async Task<TodoItemResponse?> UpdateTodoItem(long todoListId, long id, UpdateTodoItem payload)
     {
         var todoList = await _context.TodoList
             .FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
@@ -91,7 +91,7 @@ public class TodoItemService : ITodoItemService
         };
     }
 
-    public async Task<TodoItemResponse?> CreateTodoItemAsync(long todoListId, CreateTodoItem payload)
+    public async Task<TodoItemResponse?> CreateTodoItem(long todoListId, CreateTodoItem payload)
     {
         var todoList = await _context.TodoList
             .FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
@@ -120,7 +120,7 @@ public class TodoItemService : ITodoItemService
         };
     }
 
-    public async Task<bool> DeleteTodoItemAsync(long todoListId, long id)
+    public async Task<bool> DeleteTodoItem(long todoListId, long id)
     {
         var todoList = await _context.TodoList
             .FirstOrDefaultAsync(tl => tl.Id == todoListId && !tl.IsDeleted);
@@ -149,7 +149,7 @@ public class TodoItemService : ITodoItemService
         return true;
     }
 
-    public async Task MarkAsPendingAsync(long todoItemId)
+    public async Task MarkAsPending(long todoItemId)
     {
         var todoItem = await _context.TodoItem
             .FirstOrDefaultAsync(ti => ti.Id == todoItemId);
@@ -180,7 +180,7 @@ public class TodoItemService : ITodoItemService
         }
     }
 
-    public async Task ClearPendingFlagAsync(long todoItemId)
+    public async Task ClearPendingFlag(long todoItemId)
     {
         var todoItem = await _context.TodoItem
             .FirstOrDefaultAsync(ti => ti.Id == todoItemId);

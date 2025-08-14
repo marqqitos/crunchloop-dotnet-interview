@@ -46,9 +46,21 @@ public class TodoItemBuilder
         return this;
     }
 
-    public TodoItemBuilder WithIsSyncPending(bool isSyncPending)
+    public TodoItemBuilder WithSyncPending(bool isSyncPending)
     {
         _todoItem.IsSyncPending = isSyncPending;
+        return this;
+    }
+
+    public TodoItemBuilder WithIsDeleted(bool isDeleted)
+    {
+        _todoItem.IsDeleted = isDeleted;
+        return this;
+    }
+
+    public TodoItemBuilder WithDeletedAt(DateTime deletedAt)
+    {
+        _todoItem.DeletedAt = deletedAt;
         return this;
     }
 

@@ -18,7 +18,7 @@ namespace TodoApi.Controllers
         [HttpGet]
         public async Task<ActionResult<IList<TodoItemResponse>>> GetTodoItems(long todoListId)
         {
-            var items = await _todoItemService.GetTodoItemsAsync(todoListId);
+            var items = await _todoItemService.GetTodoItems(todoListId);
 
 			if (items is null)
 				return NotFound($"TodoList with id {todoListId} not found");
@@ -29,8 +29,8 @@ namespace TodoApi.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<TodoItemResponse>> GetTodoItem(long todoListId, long id)
         {
-            var listExists = await _todoItemService.TodoListExistsAsync(todoListId);
-            var todoItem = await _todoItemService.GetTodoItemAsync(todoListId, id);
+            var listExists = await _todoItemService.TodoListExists(todoListId);
+            var todoItem = await _todoItemService.GetTodoItemById(todoListId, id);
 
 			if (todoItem is null)
             {
@@ -46,8 +46,8 @@ namespace TodoApi.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<TodoItemResponse>> PutTodoItem(long todoListId, long id, UpdateTodoItem payload)
         {
-            var listExists = await _todoItemService.TodoListExistsAsync(todoListId);
-            var updated = await _todoItemService.UpdateTodoItemAsync(todoListId, id, payload);
+            var listExists = await _todoItemService.TodoListExists(todoListId);
+            var updated = await _todoItemService.UpdateTodoItem(todoListId, id, payload);
 
 			if (updated is null)
             {
@@ -63,7 +63,7 @@ namespace TodoApi.Controllers
         [HttpPost]
         public async Task<ActionResult<TodoItemResponse>> PostTodoItem(long todoListId, CreateTodoItem payload)
         {
-            var created = await _todoItemService.CreateTodoItemAsync(todoListId, payload);
+            var created = await _todoItemService.CreateTodoItem(todoListId, payload);
 
 			if (created is null)
 				return NotFound($"TodoList with id {todoListId} not found");
@@ -74,8 +74,8 @@ namespace TodoApi.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteTodoItem(long todoListId, long id)
         {
-            var listExists = await _todoItemService.TodoListExistsAsync(todoListId);
-            var found = await _todoItemService.DeleteTodoItemAsync(todoListId, id);
+            var listExists = await _todoItemService.TodoListExists(todoListId);
+            var found = await _todoItemService.DeleteTodoItem(todoListId, id);
 
 			if (!found)
             {

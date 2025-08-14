@@ -82,7 +82,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
 
         // Act
-        var result = (await _client.GetTodoListsAsync()).ToList();
+        var result = (await _client.GetTodoLists()).ToList();
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -99,7 +99,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, "[]");
 
         // Act
-        var result = await _client.GetTodoListsAsync();
+        var result = await _client.GetTodoLists();
 
         // Assert
         Assert.Empty(result);
@@ -112,7 +112,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.InternalServerError, "Internal Server Error");
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<HttpRequestException>(() => _client.GetTodoListsAsync());
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() => _client.GetTodoLists());
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.Created, jsonResponse);
 
         // Act
-        var result = await _client.CreateTodoListAsync(createDto);
+        var result = await _client.CreateTodoList(createDto);
 
         // Assert
         Assert.Equal("new-list-id", result.Id);
@@ -162,7 +162,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.Created, "invalid json");
 
         // Act & Assert
-        await Assert.ThrowsAsync<JsonException>(() => _client.CreateTodoListAsync(createDto));
+        await Assert.ThrowsAsync<JsonException>(() => _client.CreateTodoList(createDto));
     }
 
     [Fact]
@@ -182,7 +182,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
 
         // Act
-        var result = await _client.UpdateTodoListAsync(externalId, updateDto);
+        var result = await _client.UpdateTodoList(externalId, updateDto);
 
         // Assert
         Assert.Equal("Updated Name", result.Name);
@@ -199,7 +199,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.NoContent, "");
 
         // Act
-        await _client.DeleteTodoListAsync(externalId);
+        await _client.DeleteTodoList(externalId);
 
         // Assert
         VerifyHttpRequest(HttpMethod.Delete, $"/todolists/{externalId}");
@@ -213,7 +213,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.NotFound, "Not Found");
 
         // Act & Assert
-        await Assert.ThrowsAsync<HttpRequestException>(() => _client.DeleteTodoListAsync(externalId));
+        await Assert.ThrowsAsync<HttpRequestException>(() => _client.DeleteTodoList(externalId));
     }
 
     [Fact]
@@ -234,7 +234,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
 
         // Act
-        var result = await _client.UpdateTodoItemAsync(todoListId, todoItemId, updateDto);
+        var result = await _client.UpdateTodoItem(todoListId, todoItemId, updateDto);
 
         // Assert
         Assert.Equal("Updated Task", result.Description);
@@ -253,7 +253,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.NoContent, "");
 
         // Act
-        await _client.DeleteTodoItemAsync(todoListId, todoItemId);
+        await _client.DeleteTodoItem(todoListId, todoItemId);
 
         // Assert
         VerifyHttpRequest(HttpMethod.Delete, $"/todolists/{todoListId}/todoitems/{todoItemId}");
@@ -267,7 +267,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(HttpStatusCode.Created, "null");
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => _client.CreateTodoListAsync(createDto));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => _client.CreateTodoList(createDto));
         Assert.Contains("Failed to deserialize created TodoList", exception.Message);
     }
 
@@ -280,7 +280,7 @@ public class ExternalTodoApiClientTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _client.UpdateTodoItemAsync("list-1", "item-1", updateDto));
+            () => _client.UpdateTodoItem("list-1", "item-1", updateDto));
         Assert.Contains("Failed to deserialize updated TodoItem", exception.Message);
     }
 
@@ -297,7 +297,7 @@ public class ExternalTodoApiClientTests : IDisposable
         SetupHttpResponse(statusCode, "Error occurred");
 
         // Act & Assert
-        await Assert.ThrowsAsync<HttpRequestException>(() => _client.CreateTodoListAsync(createDto));
+        await Assert.ThrowsAsync<HttpRequestException>(() => _client.CreateTodoList(createDto));
     }
 
     [Fact]
@@ -320,7 +320,7 @@ public class ExternalTodoApiClientTests : IDisposable
 		var jsonResponse = JsonSerializer.Serialize(expectedTodoLists, _jsonOptions);
 
         SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
-        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(false);
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(false);
 
         // Act
         var result = (await _client.GetTodoListsPendingSync()).ToList();
@@ -331,8 +331,8 @@ public class ExternalTodoApiClientTests : IDisposable
         Assert.Equal("List 2", result[1].Name);
 
         VerifyHttpRequest(HttpMethod.Get, "/todolists");
-        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
-        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Never);
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailable(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestamp(), Times.Never);
     }
 
     [Fact]
@@ -362,8 +362,8 @@ public class ExternalTodoApiClientTests : IDisposable
         var jsonResponse = JsonSerializer.Serialize(allTodoLists, _jsonOptions);
 
         SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
-        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
-        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(lastSyncTimestamp);
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestamp()).ReturnsAsync(lastSyncTimestamp);
 
         // Act
         var result = (await _client.GetTodoListsPendingSync()).ToList();
@@ -375,8 +375,8 @@ public class ExternalTodoApiClientTests : IDisposable
         Assert.All(result, tl => Assert.True(tl.UpdatedAt >= lastSyncTimestamp));
 
         VerifyHttpRequest(HttpMethod.Get, "/todolists");
-        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
-        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailable(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestamp(), Times.Once);
     }
 
     [Fact]
@@ -399,8 +399,8 @@ public class ExternalTodoApiClientTests : IDisposable
         var jsonResponse = JsonSerializer.Serialize(expectedTodoLists, _jsonOptions);
 
         SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
-        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
-        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync((DateTime?)null);
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestamp()).ReturnsAsync((DateTime?)null);
 
         // Act
         var result = (await _client.GetTodoListsPendingSync()).ToList();
@@ -411,8 +411,8 @@ public class ExternalTodoApiClientTests : IDisposable
         Assert.Equal("List 2", result[1].Name);
 
         VerifyHttpRequest(HttpMethod.Get, "/todolists");
-        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
-        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailable(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestamp(), Times.Once);
     }
 
     [Fact]
@@ -420,8 +420,8 @@ public class ExternalTodoApiClientTests : IDisposable
     {
         // Arrange
         SetupHttpResponse(HttpStatusCode.OK, "[]");
-        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
-        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(DateTime.UtcNow.AddHours(-1));
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestamp()).ReturnsAsync(DateTime.UtcNow.AddHours(-1));
 
         // Act
         var result = (await _client.GetTodoListsPendingSync()).ToList();
@@ -430,8 +430,8 @@ public class ExternalTodoApiClientTests : IDisposable
         Assert.Empty(result);
 
         VerifyHttpRequest(HttpMethod.Get, "/todolists");
-        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
-        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailable(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestamp(), Times.Once);
     }
 
     [Fact]
@@ -439,15 +439,15 @@ public class ExternalTodoApiClientTests : IDisposable
     {
         // Arrange
         SetupHttpResponse(HttpStatusCode.InternalServerError, "Internal Server Error");
-        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
-        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(DateTime.UtcNow.AddHours(-1));
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestamp()).ReturnsAsync(DateTime.UtcNow.AddHours(-1));
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() => _client.GetTodoListsPendingSync());
 
         VerifyHttpRequest(HttpMethod.Get, "/todolists");
-        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
-        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailable(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestamp(), Times.Once);
     }
 
     [Fact]
@@ -465,8 +465,8 @@ public class ExternalTodoApiClientTests : IDisposable
         var jsonResponse = JsonSerializer.Serialize(allTodoLists, _jsonOptions);
 
         SetupHttpResponse(HttpStatusCode.OK, jsonResponse);
-        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
-        _mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(lastSyncTimestamp);
+        _mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(true);
+        _mockSyncStateService.Setup(x => x.GetLastSyncTimestamp()).ReturnsAsync(lastSyncTimestamp);
 
         // Act
         var result = (await _client.GetTodoListsPendingSync()).ToList();
@@ -476,8 +476,8 @@ public class ExternalTodoApiClientTests : IDisposable
         Assert.Equal("Recent List", result.First().Name);
 
         VerifyHttpRequest(HttpMethod.Get, "/todolists");
-        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailableAsync(), Times.Once);
-        _mockSyncStateService.Verify(x => x.GetLastSyncTimestampAsync(), Times.Once);
+        _mockSyncStateService.Verify(x => x.IsDeltaSyncAvailable(), Times.Once);
+        _mockSyncStateService.Verify(x => x.GetLastSyncTimestamp(), Times.Once);
     }
 
     private void SetupHttpResponse(HttpStatusCode statusCode, string content)

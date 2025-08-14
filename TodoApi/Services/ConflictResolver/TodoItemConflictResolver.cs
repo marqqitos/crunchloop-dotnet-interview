@@ -10,51 +10,58 @@ namespace TodoApi.Services.ConflictResolver;
 /// </summary>
 public class TodoItemConflictResolver : ConflictResolverBase<TodoItem, ExternalTodoItem>
 {
-    public TodoItemConflictResolver(ILogger<TodoItemConflictResolver> logger, IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem> strategyFactory)
-        : base(logger, strategyFactory)
-    {
-    }
+	public TodoItemConflictResolver(ILogger<TodoItemConflictResolver> logger, IConflictResolutionStrategyFactory<TodoItem, ExternalTodoItem> strategyFactory)
+		: base(logger, strategyFactory)
+	{
+	}
 
-    protected override ConflictInfo CreateConflictInfo(TodoItem localEntity, ExternalTodoItem externalEntity, ConflictResolutionStrategy strategy)
-    {
-        return new ConflictInfo
-        {
-            EntityType = nameof(TodoItem),
-            EntityId = localEntity.Id.ToString(),
-            ExternalEntityId = externalEntity.Id.ToString(),
-            LocalLastModified = localEntity.LastModified,
-            ExternalLastModified = externalEntity.UpdatedAt,
-            LastSyncedAt = localEntity.LastSyncedAt,
-            Resolution = strategy
-        };
-    }
+	protected override ConflictInfo CreateConflictInfo(TodoItem localEntity, ExternalTodoItem externalEntity, ConflictResolutionStrategy strategy)
+		=> new ConflictInfo
+		{
+			EntityType = nameof(TodoItem),
+			EntityId = localEntity.Id.ToString(),
+			ExternalEntityId = externalEntity.Id.ToString(),
+			LocalLastModified = localEntity.LastModified,
+			ExternalLastModified = externalEntity.UpdatedAt,
+			LastSyncedAt = localEntity.LastSyncedAt,
+			Resolution = strategy
+		};
 
     protected override void DetectModifiedFields(TodoItem localEntity, ExternalTodoItem externalEntity, ConflictInfo conflictInfo)
-    {
-        if (localEntity.Description != externalEntity.Description)
-            conflictInfo.ModifiedFields.Add(nameof(TodoItem.Description));
+	{
+		if (localEntity.Description != externalEntity.Description)
+			conflictInfo.ModifiedFields.Add(nameof(TodoItem.Description));
 
-        if (localEntity.IsCompleted != externalEntity.Completed)
-            conflictInfo.ModifiedFields.Add(nameof(TodoItem.IsCompleted));
-    }
+		if (localEntity.IsCompleted != externalEntity.Completed)
+			conflictInfo.ModifiedFields.Add(nameof(TodoItem.IsCompleted));
+	}
 
-	protected override DateTime GetLocalLastModified(TodoItem localEntity) => localEntity.LastModified;
+	protected override DateTime GetLocalLastModified(TodoItem localEntity)
+		=> localEntity.LastModified;
 
-	protected override DateTime GetExternalLastModified(ExternalTodoItem externalEntity) => externalEntity.UpdatedAt;
+	protected override DateTime GetExternalLastModified(ExternalTodoItem externalEntity)
+		=> externalEntity.UpdatedAt;
 
-	protected override string GetEntityId(TodoItem localEntity) => localEntity.Id.ToString();
+	protected override string GetEntityId(TodoItem localEntity)
+		=> localEntity.Id.ToString();
 
-	protected override string GetExternalEntityId(ExternalTodoItem externalEntity) => externalEntity.Id.ToString();
+	protected override string GetExternalEntityId(ExternalTodoItem externalEntity)
+		=> externalEntity.Id.ToString();
 
-	protected override void UpdateSyncData(TodoItem localEntity) => localEntity.LastSyncedAt = DateTime.UtcNow;
+	protected override void UpdateSyncData(TodoItem localEntity)
+	{
+		localEntity.IsSyncPending = false;
+		localEntity.LastSyncedAt = DateTime.UtcNow;
+	}
 
-	protected override void UpdateLastModified(TodoItem localEntity, DateTime newLastModified) => localEntity.LastModified = newLastModified;
+	protected override void UpdateLastModified(TodoItem localEntity, DateTime newLastModified)
+		=> localEntity.LastModified = newLastModified;
 
-    protected override void ApplyExternalChanges(TodoItem localEntity, ExternalTodoItem externalEntity)
-    {
-        localEntity.Description = externalEntity.Description;
-        localEntity.IsCompleted = externalEntity.Completed;
-        localEntity.LastModified = externalEntity.UpdatedAt;
-        localEntity.LastSyncedAt = DateTime.UtcNow;
-    }
+	protected override void ApplyExternalChanges(TodoItem localEntity, ExternalTodoItem externalEntity)
+	{
+		localEntity.Description = externalEntity.Description;
+		localEntity.IsCompleted = externalEntity.Completed;
+		localEntity.LastModified = externalEntity.UpdatedAt;
+		localEntity.LastSyncedAt = DateTime.UtcNow;
+	}
 }

@@ -1,22 +1,20 @@
 using TodoApi.Dtos;
-using TodoApi.Dtos.External;
 using TodoApi.Models;
 
 namespace TodoApi.Services.TodoListService;
 
 public interface ITodoListService
 {
-    Task<IList<TodoListResponse>> GetTodoListsAsync();
-    Task<TodoListResponse?> GetTodoListAsync(long id);
-    Task<TodoListResponse?> UpdateTodoListAsync(long id, UpdateTodoList payload);
-    Task<TodoListResponse> CreateTodoListAsync(CreateTodoList payload);
-    Task<bool> DeleteTodoListAsync(long id);
-	Task MarkAsPendingAsync(long todoListId);
-	Task ClearPendingFlagAsync(long todoListId);
-    Task<IEnumerable<TodoList>> GetTodoListsPendingSync();
-    Task<bool> ExternalTodoListsMismatch(IEnumerable<ExternalTodoList> externalTodoLists);
-    Task<TodoList?> GetTodoListByExternalIdAsync(string externalId);
-    Task<IEnumerable<TodoList>> GetOrphanedTodoListsAsync(IEnumerable<string> externalListIds);
+    Task<IList<TodoListResponse>> GetTodoLists();
+    Task<TodoListResponse?> GetTodoListById(long id);
+    Task<TodoListResponse?> UpdateTodoList(long id, UpdateTodoList payload);
+    Task<TodoListResponse> CreateTodoList(CreateTodoList payload);
+    Task<bool> DeleteTodoList(long id);
+	Task MarkAsPending(long todoListId);
+	Task ClearPendingFlag(long todoListId);
+    Task<IEnumerable<TodoList>> GetTodoListsPending();
+    Task<TodoList?> GetTodoListByExternalId(string externalId);
+    Task<IEnumerable<TodoList>> GetOrphanedTodoLists(IEnumerable<string> externalListIds);
 }
 
 

@@ -12,7 +12,7 @@ public interface IExternalTodoApiClient
     /// <summary>
     /// Get all TodoLists from external API
     /// </summary>
-    Task<IEnumerable<ExternalTodoList>> GetTodoListsAsync();
+    Task<IEnumerable<ExternalTodoList>> GetTodoLists();
 
 	/// <summary>
 	/// Get all TodoLists from external API that have pending sync with our local database
@@ -22,25 +22,25 @@ public interface IExternalTodoApiClient
     /// <summary>
     /// Create a new TodoList in external API
     /// </summary>
-    Task<ExternalTodoList> CreateTodoListAsync(CreateExternalTodoList createDto);
+    Task<ExternalTodoList> CreateTodoList(CreateExternalTodoList createDto);
 
     /// <summary>
     /// Update an existing TodoList in external API
     /// </summary>
-    Task<ExternalTodoList> UpdateTodoListAsync(string id, UpdateExternalTodoList updateDto);
+    Task<ExternalTodoList> UpdateTodoList(string id, UpdateExternalTodoList updateDto);
 
     /// <summary>
     /// Update a TodoItem in external API
     /// </summary>
-    Task<ExternalTodoItem> UpdateTodoItemAsync(string todoListId, string itemId, UpdateExternalTodoItem updateDto);
+    Task<ExternalTodoItem> UpdateTodoItem(string todoListId, string itemId, UpdateExternalTodoItem updateDto);
 
     /// <summary>
     /// Delete a TodoList in external API
     /// </summary>
-    Task DeleteTodoListAsync(string id);
+    Task DeleteTodoList(string id);
 
     /// <summary>
     /// Delete a TodoItem in external API
     /// </summary>
-    Task DeleteTodoItemAsync(string todoListId, string itemId);
+    Task DeleteTodoItem(string todoListId, string itemId);
 }

@@ -83,7 +83,7 @@ public class RetryIntegrationTests : IAsyncDisposable
         _context.TodoList.Add(todoList);
         await _context.SaveChangesAsync();
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { todoList });
 
         var callCount = 0;
         var expectedResult = ExternalTodoListBuilder.Create()
@@ -95,7 +95,7 @@ public class RetryIntegrationTests : IAsyncDisposable
                 .Build())
             .Build();
 
-        _mockExternalClient.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
+        _mockExternalClient.Setup(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()))
             .Returns(() =>
             {
                 callCount++;
@@ -115,7 +115,7 @@ public class RetryIntegrationTests : IAsyncDisposable
         var syncedTodoList = await _context.TodoList.FirstAsync();
         Assert.Equal("ext-123", syncedTodoList.ExternalId);
 
-        _mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Exactly(2));
+        _mockExternalClient.Verify(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -129,10 +129,10 @@ public class RetryIntegrationTests : IAsyncDisposable
         _context.TodoList.Add(todoList);
         await _context.SaveChangesAsync();
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { todoList });
 
         var callCount = 0;
-        _mockExternalClient.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
+        _mockExternalClient.Setup(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()))
             .Returns(() =>
             {
                 callCount++;
@@ -149,7 +149,7 @@ public class RetryIntegrationTests : IAsyncDisposable
         var todoListAfterSync = await _context.TodoList.FirstAsync();
         Assert.Null(todoListAfterSync.ExternalId);
 
-        _mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Exactly(3));
+        _mockExternalClient.Verify(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()), Times.Exactly(3));
     }
 
     [Fact]

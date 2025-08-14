@@ -16,7 +16,7 @@ public class TodoListSyncStateService : ISyncStateService
         _logger = logger;
     }
 
-    public async Task<DateTime?> GetLastSyncTimestampAsync()
+    public async Task<DateTime?> GetLastSyncTimestamp()
     {
         // Get the most recent LastSyncedAt timestamp from all TodoLists and TodoItems
         var todoListLastSync = await _context.TodoList
@@ -36,7 +36,7 @@ public class TodoListSyncStateService : ISyncStateService
         return lastSync;
     }
 
-    public async Task UpdateLastSyncTimestampAsync(DateTime syncTimestamp)
+    public async Task UpdateLastSyncTimestamp(DateTime syncTimestamp)
     {
         _logger.LogInformation("Updating last sync timestamp to {SyncTimestamp}", syncTimestamp);
 
@@ -66,33 +66,41 @@ public class TodoListSyncStateService : ISyncStateService
             syncedTodoLists.Count, syncedTodoItems.Count);
     }
 
-    public async Task<bool> IsDeltaSyncAvailableAsync()
+    public async Task<bool> IsDeltaSyncAvailable()
     {
-        var lastSync = await GetLastSyncTimestampAsync();
+        var lastSync = await GetLastSyncTimestamp();
         var isAvailable = lastSync.HasValue;
 
         _logger.LogDebug("Delta sync available: {IsAvailable} (last sync: {LastSync})", isAvailable, lastSync);
         return isAvailable;
     }
 
-    public async Task<DateTime?> GetEarliestLastModifiedAsync()
+    public async Task<DateTime?> GetEarliestLastModified()
     {
         // Get the earliest LastModified timestamp from all TodoLists and TodoItems
         // This can be used as a fallback for delta sync when no previous sync exists
-        var todoListEarliest = await _context.TodoList
+
+        // Get all valid timestamps from TodoLists
+        var todoListTimestamps = await _context.TodoList
             .Where(tl => tl.LastModified != default)
-            .MinAsync(tl => tl.LastModified);
+            .Select(tl => tl.LastModified)
+            .ToListAsync();
 
-        var todoItemEarliest = await _context.TodoItem
+        var todoItemTimestamps = await _context.TodoItem
             .Where(ti => ti.LastModified != default)
-            .MinAsync(ti => ti.LastModified);
+            .Select(ti => ti.LastModified)
+            .ToListAsync();
 
-        // Return the earliest timestamp between TodoLists and TodoItems
-        var earliest = todoListEarliest != default && todoItemEarliest != default
-            ? todoListEarliest < todoItemEarliest ? todoListEarliest : todoItemEarliest
-            : todoListEarliest != default ? todoListEarliest : todoItemEarliest;
+        // Combine all timestamps and find the minimum
+        var allTimestamps = todoListTimestamps.Concat(todoItemTimestamps);
+
+        DateTime? earliest = null;
+        if (allTimestamps.Any())
+        {
+            earliest = allTimestamps.Min();
+        }
 
         _logger.LogDebug("Earliest last modified timestamp: {Earliest}", earliest);
-        return earliest != default ? earliest : null;
+        return earliest;
     }
 }

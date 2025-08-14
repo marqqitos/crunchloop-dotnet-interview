@@ -235,11 +235,11 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_context.TodoList.AddRange(list1, list2, list3);
 		await _context.SaveChangesAsync();
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { list1, list2 });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { list1, list2 });
 
 		// Setup external API responses
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.Is<CreateExternalTodoList>(dto => dto.Name == "Shopping List")))
+			.Setup(x => x.CreateTodoList(It.Is<CreateExternalTodoList>(dto => dto.Name == "Shopping List")))
 			.ReturnsAsync(ExternalTodoListBuilder.Create()
 				.WithId("ext-shopping")
 				.WithName("Shopping List")
@@ -249,7 +249,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 				.Build());
 
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.Is<CreateExternalTodoList>(dto => dto.Name == "Work Tasks")))
+			.Setup(x => x.CreateTodoList(It.Is<CreateExternalTodoList>(dto => dto.Name == "Work Tasks")))
 			.ReturnsAsync(ExternalTodoListBuilder.Create()
 				.WithId("ext-work")
 				.WithName("Work Tasks")
@@ -292,9 +292,9 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		Assert.Equal("already-synced-id", alreadySyncedList.ExternalId);
 
 		// Verify external API was called correctly
-		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Exactly(2));
-		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.Is<CreateExternalTodoList>(dto => dto.Name == "Shopping List")), Times.Once);
-		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.Is<CreateExternalTodoList>(dto => dto.Name == "Work Tasks")), Times.Once);
+		_mockExternalClient.Verify(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()), Times.Exactly(2));
+		_mockExternalClient.Verify(x => x.CreateTodoList(It.Is<CreateExternalTodoList>(dto => dto.Name == "Shopping List")), Times.Once);
+		_mockExternalClient.Verify(x => x.CreateTodoList(It.Is<CreateExternalTodoList>(dto => dto.Name == "Work Tasks")), Times.Once);
 	}
 
 	[Fact]
@@ -309,12 +309,12 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_context.TodoList.Add(todoList);
 		await _context.SaveChangesAsync();
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { todoList });
 
 		var originalLastModified = todoList.LastModified;
 
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
+			.Setup(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()))
 			.ReturnsAsync(ExternalTodoListBuilder.Create()
 				.WithId("ext-123")
 				.WithName("Test List")
@@ -333,7 +333,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		await _syncService.SyncTodoListsToExternal();
 
 		// Assert - No additional calls should be made
-		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Once);
+		_mockExternalClient.Verify(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()), Times.Once);
 
 		var finalList = await _context.TodoList.FirstAsync();
 		Assert.Equal(firstSyncTime, finalList.LastModified); // Timestamp should not change
@@ -356,22 +356,22 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_context.TodoList.AddRange(list1, list2, list3);
 		await _context.SaveChangesAsync();
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { list1, list2, list3 });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { list1, list2, list3 });
 
 		// Setup mixed success/failure responses
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.Is<CreateExternalTodoList>(dto => dto.Name == "Success List")))
+			.Setup(x => x.CreateTodoList(It.Is<CreateExternalTodoList>(dto => dto.Name == "Success List")))
 			.ReturnsAsync(ExternalTodoListBuilder.Create()
 				.WithId("ext-success-1")
 				.WithName("Success List")
 				.Build());
 
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.Is<CreateExternalTodoList>(dto => dto.Name == "Failure List")))
+			.Setup(x => x.CreateTodoList(It.Is<CreateExternalTodoList>(dto => dto.Name == "Failure List")))
 			.ThrowsAsync(new HttpRequestException("External API Error"));
 
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.Is<CreateExternalTodoList>(dto => dto.Name == "Another Success")))
+			.Setup(x => x.CreateTodoList(It.Is<CreateExternalTodoList>(dto => dto.Name == "Another Success")))
 			.ReturnsAsync(ExternalTodoListBuilder.Create()
 				.WithId("ext-success-2")
 				.WithName("Another Success")
@@ -395,7 +395,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		Assert.Null(failureList.ExternalId);
 
 		// All three should have been attempted
-		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Exactly(3));
+		_mockExternalClient.Verify(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()), Times.Exactly(3));
 	}
 
 	[Fact]
@@ -481,7 +481,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 				todoList.LastModified = externalTodoList.UpdatedAt;
 			});
 
-		_mockTodoListService.Setup(x => x.GetTodoListByExternalIdAsync(It.IsAny<string>()))
+		_mockTodoListService.Setup(x => x.GetTodoListByExternalId(It.IsAny<string>()))
 			.ReturnsAsync(existingTodoList);
 
 		// Act
@@ -514,7 +514,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithUpdatedAt(DateTime.UtcNow.AddHours(-1)) // Older than local
 			.Build();
 
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoLists())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
 		// Act
@@ -530,7 +530,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 	public async Task SyncTodoListsFromExternalAsync_WithNoExternalData_LogsAndReturns()
 	{
 		// Arrange
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockExternalClient.Setup(x => x.GetTodoLists())
 			.ReturnsAsync(new List<ExternalTodoList>());
 
 		// Act
@@ -634,7 +634,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 				It.IsAny<ExternalTodoItem>(),
 				It.IsAny<ConflictInfo>()));
 
-		_mockTodoListService.Setup(x => x.GetTodoListByExternalIdAsync(It.IsAny<string>()))
+		_mockTodoListService.Setup(x => x.GetTodoListByExternalId(It.IsAny<string>()))
 			.ReturnsAsync(existingTodoList);
 
 		// Act
@@ -683,7 +683,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
-		_mockTodoListService.Setup(x => x.GetTodoListByExternalIdAsync(It.IsAny<string>()))
+		_mockTodoListService.Setup(x => x.GetTodoListByExternalId(It.IsAny<string>()))
 			.ReturnsAsync(localTodoList);
 
 		// Act
@@ -748,7 +748,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
-		_mockTodoListService.Setup(x => x.GetTodoListByExternalIdAsync(It.IsAny<string>()))
+		_mockTodoListService.Setup(x => x.GetTodoListByExternalId(It.IsAny<string>()))
 			.ReturnsAsync(localTodoList);
 
 		// Act
@@ -797,7 +797,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
-		_mockTodoListService.Setup(x => x.GetTodoListByExternalIdAsync(It.IsAny<string>()))
+		_mockTodoListService.Setup(x => x.GetTodoListByExternalId(It.IsAny<string>()))
 			.ReturnsAsync(localTodoList);
 
 		// Act
@@ -846,7 +846,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
-		_mockTodoListService.Setup(x => x.GetTodoListByExternalIdAsync(It.IsAny<string>()))
+		_mockTodoListService.Setup(x => x.GetTodoListByExternalId(It.IsAny<string>()))
 			.ReturnsAsync(localTodoList);
 
 		// Act
@@ -938,13 +938,13 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.Build();
 
 		// Setup mocks
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync())
+		_mockTodoListService.Setup(x => x.GetTodoListsPending())
 			.ReturnsAsync(new List<TodoList> { unsyncedLocal });
 
-		_mockTodoListService.Setup(x => x.GetTodoListByExternalIdAsync(It.Is<string>(id => id == "ext-conflict-123")))
+		_mockTodoListService.Setup(x => x.GetTodoListByExternalId(It.Is<string>(id => id == "ext-conflict-123")))
 			.ReturnsAsync(conflictedLocal);
 
-		_mockExternalClient.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
+		_mockExternalClient.Setup(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()))
 			.ReturnsAsync(unsyncedLocalListCreatedInExternalAfterSync);
 
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
@@ -981,14 +981,14 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 
 		// Setup mock to return empty list
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<ExternalTodoList>());
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList>());
-		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(false);
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList>());
+		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(false);
 
 		// Act
 		await _syncService.PerformFullSync();
 
 		// Assert
-		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Never);
+		_mockExternalClient.Verify(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()), Times.Never);
 		_mockExternalClient.Verify(x => x.GetTodoListsPendingSync(), Times.Once); // Still checks for external changes
 	}
 
@@ -1010,21 +1010,21 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithName("Test List")
 			.Build();
 
-		_mockExternalClient.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>())).ReturnsAsync(externalResponse);
+		_mockExternalClient.Setup(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>())).ReturnsAsync(externalResponse);
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<ExternalTodoList>());
 
 
 		// Setup retry policy mocks
 		_mockRetryPolicyService.Setup(x => x.GetSyncRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
 		_mockRetryPolicyService.Setup(x => x.GetDatabaseRetryPolicy()).Returns(Polly.ResiliencePipeline.Empty);
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList });
-		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(false);
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { todoList });
+		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(false);
 
 		// Act
 		await _syncService.PerformFullSync();
 
 		// Assert
-		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Once);
+		_mockExternalClient.Verify(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()), Times.Once);
 		_mockExternalClient.Verify(x => x.GetTodoListsPendingSync(), Times.Once);
 	}
 
@@ -1064,10 +1064,10 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 				.Build())
 			.Build();
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { todoList });
 
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
+			.Setup(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()))
 			.ReturnsAsync(externalResponse);
 
 		// Act
@@ -1085,7 +1085,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		Assert.Equal("item-2", item2.ExternalId);
 
 		// Verify external client was called correctly
-		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.Is<CreateExternalTodoList>(dto =>
+		_mockExternalClient.Verify(x => x.CreateTodoList(It.Is<CreateExternalTodoList>(dto =>
 			dto.Name == "Test List" &&
 			dto.SourceId == "integration-test-source" &&
 			dto.Items.Count == 2
@@ -1108,7 +1108,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		await _syncService.SyncTodoListsToExternal();
 
 		// Assert
-		_mockExternalClient.Verify(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()), Times.Never);
+		_mockExternalClient.Verify(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()), Times.Never);
 
 		// Verify appropriate log message
 		VerifyLogCalled(LogLevel.Information, "No unsynced TodoLists found");
@@ -1132,14 +1132,14 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		await _context.SaveChangesAsync();
 
 		_mockExternalClient
-			.SetupSequence(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
+			.SetupSequence(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()))
 			.ThrowsAsync(new HttpRequestException("External API error"))
 			.ReturnsAsync(ExternalTodoListBuilder.Create()
 				.WithId("ext-456")
 				.WithName("List 2")
 				.Build());
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList1, todoList2 });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { todoList1, todoList2 });
 
 		// Act
 		await _syncService.SyncTodoListsToExternal();
@@ -1183,12 +1183,12 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.Build();
 
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
+			.Setup(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()))
 			.ReturnsAsync(externalResponse);
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { todoList });
 
-		_mockTodoListService.Setup(x => x.GetTodoListByExternalIdAsync(It.IsAny<string>()))
+		_mockTodoListService.Setup(x => x.GetTodoListByExternalId(It.IsAny<string>()))
 			.ReturnsAsync(todoList);
 
 		// Act
@@ -1220,10 +1220,10 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithName("Empty List")
 			.Build();
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { todoList });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { todoList });
 
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
+			.Setup(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()))
 			.ReturnsAsync(externalResponse);
 
 		// Act
@@ -1258,13 +1258,13 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		await _context.SaveChangesAsync();
 
 		_mockExternalClient
-			.Setup(x => x.CreateTodoListAsync(It.IsAny<CreateExternalTodoList>()))
+			.Setup(x => x.CreateTodoList(It.IsAny<CreateExternalTodoList>()))
 			.ReturnsAsync((CreateExternalTodoList dto) => ExternalTodoListBuilder.Create()
 				.WithId($"ext-{dto.Name.Replace(' ', '-').ToLower()}")
 				.WithName(dto.Name)
 				.Build());
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { lists[0], lists[1], lists[2] });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { lists[0], lists[1], lists[2] });
 
 		// Act
 		await _syncService.SyncTodoListsToExternal();
@@ -1296,8 +1296,8 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 				.Build())
 			.Build();
 
-		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
-		_mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(lastSyncTime);
+		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(true);
+		_mockSyncStateService.Setup(x => x.GetLastSyncTimestamp()).ReturnsAsync(lastSyncTime);
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
@@ -1306,7 +1306,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 
 		// Assert
 		_mockExternalClient.Verify(x => x.GetTodoListsPendingSync(), Times.Once);
-		_mockSyncStateService.Verify(x => x.UpdateLastSyncTimestampAsync(It.IsAny<DateTime>()), Times.Once);
+		_mockSyncStateService.Verify(x => x.UpdateLastSyncTimestamp(It.IsAny<DateTime>()), Times.Once);
 	}
 
 	[Fact]
@@ -1320,7 +1320,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 			.WithUpdatedAt(DateTime.UtcNow)
 			.Build();
 
-		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(false);
+		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(false);
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalTodoList });
 
@@ -1329,23 +1329,23 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 
 		// Assert
 		_mockExternalClient.Verify(x => x.GetTodoListsPendingSync(), Times.Once);
-		_mockSyncStateService.Verify(x => x.UpdateLastSyncTimestampAsync(It.IsAny<DateTime>()), Times.Once);
+		_mockSyncStateService.Verify(x => x.UpdateLastSyncTimestamp(It.IsAny<DateTime>()), Times.Once);
 	}
 
 	[Fact]
 	public async Task SyncTodoListsFromExternalAsync_WhenNoChanges_DoesNotUpdateSyncTimestamp()
 	{
 		// Arrange
-		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailableAsync()).ReturnsAsync(true);
-		_mockSyncStateService.Setup(x => x.GetLastSyncTimestampAsync()).ReturnsAsync(DateTime.UtcNow.AddHours(-1));
-		_mockExternalClient.Setup(x => x.GetTodoListsAsync())
+		_mockSyncStateService.Setup(x => x.IsDeltaSyncAvailable()).ReturnsAsync(true);
+		_mockSyncStateService.Setup(x => x.GetLastSyncTimestamp()).ReturnsAsync(DateTime.UtcNow.AddHours(-1));
+		_mockExternalClient.Setup(x => x.GetTodoLists())
 			.ReturnsAsync(new List<ExternalTodoList>());
 
 		// Act
 		await _syncService.SyncTodoListsFromExternal();
 
 		// Assert
-		_mockSyncStateService.Verify(x => x.UpdateLastSyncTimestampAsync(It.IsAny<DateTime>()), Times.Never);
+		_mockSyncStateService.Verify(x => x.UpdateLastSyncTimestamp(It.IsAny<DateTime>()), Times.Never);
 	}
 
 	private void VerifyLogCalled(LogLevel level, string message)
@@ -1374,7 +1374,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_context.TodoList.Add(deletedList);
 		await _context.SaveChangesAsync();
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList> { deletedList });
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList> { deletedList });
 
 		_mockRetryPolicyService.Setup(x => x.GetSyncRetryPolicy())
 			.Returns(ResiliencePipeline.Empty);
@@ -1383,7 +1383,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		await _syncService.SyncTodoListsToExternal();
 
 		// Assert
-		_mockExternalClient.Verify(x => x.DeleteTodoListAsync("ext-123"), Times.Once);
+		_mockExternalClient.Verify(x => x.DeleteTodoList("ext-123"), Times.Once);
 
 		var updatedList = await _context.TodoList.FindAsync(deletedList.Id);
 		Assert.NotNull(updatedList);
@@ -1413,11 +1413,11 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		_mockExternalClient.Setup(x => x.GetTodoListsPendingSync())
 			.ReturnsAsync(new List<ExternalTodoList> { externalList });
 
-		_mockTodoListService.Setup(x => x.GetTodoListByExternalIdAsync(It.IsAny<string>()))
+		_mockTodoListService.Setup(x => x.GetTodoListByExternalId(It.IsAny<string>()))
 			.ReturnsAsync(deletedList);
 
 		// Mock the sync state service
-		_mockSyncStateService.Setup(x => x.UpdateLastSyncTimestampAsync(It.IsAny<DateTime>()))
+		_mockSyncStateService.Setup(x => x.UpdateLastSyncTimestamp(It.IsAny<DateTime>()))
 			.Returns(Task.CompletedTask);
 
 		// Act
@@ -1432,8 +1432,488 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 		Assert.NotNull(restoredList.LastSyncedAt);
 	}
 
+	[Fact]
+	public async Task DetectAndHandleExternalDeletions_WithOrphanedTodoLists_ShouldSoftDeleteListsAndItems()
+	{
+		// Arrange
+		var fixedTime = new DateTime(2025, 1, 15, 12, 0, 0, DateTimeKind.Utc);
+
+		// Create local TodoLists that have ExternalIds but won't be returned by external API
+		var orphanedItem1 = TodoItemBuilder.Create()
+			.WithDescription("Orphaned Item 1")
+			.WithExternalId("ext-item-1")
+			.WithIsCompleted(false)
+			.Build();
+
+		var orphanedItem2 = TodoItemBuilder.Create()
+			.WithDescription("Orphaned Item 2")
+			.WithExternalId("ext-item-2")
+			.WithIsCompleted(true)
+			.Build();
+
+		var orphanedList = TodoListBuilder.Create()
+			.WithName("Orphaned List")
+			.WithExternalId("ext-orphaned-123")
+			.WithItem(orphanedItem1)
+			.WithItem(orphanedItem2)
+			.Build();
+
+		var activeItem = TodoItemBuilder.Create()
+			.WithDescription("Active Item")
+			.WithExternalId("ext-item-active")
+			.WithIsCompleted(false)
+			.Build();
+
+		var activeList = TodoListBuilder.Create()
+			.WithName("Active List")
+			.WithExternalId("ext-active-456")
+			.WithItem(activeItem)
+			.Build();
+
+		_context.TodoList.AddRange(orphanedList, activeList);
+		await _context.SaveChangesAsync();
+
+		// External API returns only the active list (orphaned list is missing)
+		var externalActiveItem = ExternalTodoItemBuilder.Create()
+			.WithId("ext-item-active")
+			.WithDescription("Active Item")
+			.WithCompleted(false)
+			.Build();
+
+		var externalActiveList = ExternalTodoListBuilder.Create()
+			.WithId("ext-active-456")
+			.WithName("Active List")
+			.WithItem(externalActiveItem)
+			.Build();
+
+		_mockExternalClient.Setup(x => x.GetTodoLists())
+			.ReturnsAsync(new List<ExternalTodoList> { externalActiveList });
+
+		// Mock service calls
+		_mockTodoListService.Setup(x => x.GetOrphanedTodoLists(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoList> { orphanedList });
+
+		_mockTodoItemService.Setup(x => x.GetOrphanedTodoItems(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoItem>());
+
+		// Act
+		using var mockTimeProvider = new MockTimeProvider(fixedTime);
+		await _syncService.DetectAndHandleExternalDeletions();
+
+		// Assert
+		var updatedOrphanedList = await _context.TodoList
+			.Include(tl => tl.Items)
+			.FirstAsync(tl => tl.Id == orphanedList.Id);
+
+		// Verify list was soft deleted
+		Assert.True(updatedOrphanedList.IsDeleted);
+		Assert.NotNull(updatedOrphanedList.DeletedAt);
+		Assert.NotNull(updatedOrphanedList.LastSyncedAt);
+
+		// Verify all items in the list were soft deleted
+		Assert.All(updatedOrphanedList.Items, item =>
+		{
+			Assert.True(item.IsDeleted);
+			Assert.NotNull(item.DeletedAt);
+			Assert.NotNull(item.LastSyncedAt);
+		});
+
+		// Verify active list remains unchanged
+		var updatedActiveList = await _context.TodoList
+			.Include(tl => tl.Items)
+			.FirstAsync(tl => tl.Id == activeList.Id);
+
+		Assert.False(updatedActiveList.IsDeleted);
+		Assert.Null(updatedActiveList.DeletedAt);
+		Assert.All(updatedActiveList.Items, item =>
+		{
+			Assert.False(item.IsDeleted);
+			Assert.Null(item.DeletedAt);
+		});
+
+		// Verify external client was called
+		_mockExternalClient.Verify(x => x.GetTodoLists(), Times.Once);
+		_mockTodoListService.Verify(x => x.GetOrphanedTodoLists(It.Is<HashSet<string>>(ids =>
+			ids.Contains("ext-active-456") && !ids.Contains("ext-orphaned-123"))), Times.Once);
+	}
+
+	[Fact]
+	public async Task DetectAndHandleExternalDeletions_WithOrphanedTodoItems_ShouldSoftDeleteItemsOnly()
+	{
+		// Arrange
+		var fixedTime = new DateTime(2025, 1, 15, 12, 0, 0, DateTimeKind.Utc);
+
+		// Create local TodoList with items, some of which will be orphaned
+		var activeItem = TodoItemBuilder.Create()
+			.WithDescription("Active Item")
+			.WithExternalId("ext-item-active")
+			.WithIsCompleted(false)
+			.Build();
+
+		var orphanedItem1 = TodoItemBuilder.Create()
+			.WithDescription("Orphaned Item 1")
+			.WithExternalId("ext-item-orphaned-1")
+			.WithIsCompleted(true)
+			.Build();
+
+		var orphanedItem2 = TodoItemBuilder.Create()
+			.WithDescription("Orphaned Item 2")
+			.WithExternalId("ext-item-orphaned-2")
+			.WithIsCompleted(false)
+			.Build();
+
+		var todoList = TodoListBuilder.Create()
+			.WithName("Test List")
+			.WithExternalId("ext-list-123")
+			.WithItem(activeItem)
+			.WithItem(orphanedItem1)
+			.WithItem(orphanedItem2)
+			.Build();
+
+		_context.TodoList.Add(todoList);
+		await _context.SaveChangesAsync();
+
+		// External API returns the list but only with the active item
+		var externalActiveItem = ExternalTodoItemBuilder.Create()
+			.WithId("ext-item-active")
+			.WithDescription("Active Item")
+			.WithCompleted(false)
+			.Build();
+
+		var externalList = ExternalTodoListBuilder.Create()
+			.WithId("ext-list-123")
+			.WithName("Test List")
+			.WithItem(externalActiveItem)
+			.Build();
+
+		_mockExternalClient.Setup(x => x.GetTodoLists())
+			.ReturnsAsync(new List<ExternalTodoList> { externalList });
+
+		// Mock service calls
+		_mockTodoListService.Setup(x => x.GetOrphanedTodoLists(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoList>());
+
+		_mockTodoItemService.Setup(x => x.GetOrphanedTodoItems(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoItem> { orphanedItem1, orphanedItem2 });
+
+		// Act
+		using var mockTimeProvider = new MockTimeProvider(fixedTime);
+		await _syncService.DetectAndHandleExternalDeletions();
+
+		// Assert
+		var updatedList = await _context.TodoList
+			.Include(tl => tl.Items)
+			.FirstAsync(tl => tl.Id == todoList.Id);
+
+		// Verify list was not soft deleted
+		Assert.False(updatedList.IsDeleted);
+		Assert.Null(updatedList.DeletedAt);
+
+		// Verify orphaned items were soft deleted
+		var updatedOrphanedItem1 = updatedList.Items.First(i => i.ExternalId == "ext-item-orphaned-1");
+		var updatedOrphanedItem2 = updatedList.Items.First(i => i.ExternalId == "ext-item-orphaned-2");
+
+		Assert.True(updatedOrphanedItem1.IsDeleted);
+		Assert.NotNull(updatedOrphanedItem1.DeletedAt);
+		Assert.NotNull(updatedOrphanedItem1.LastSyncedAt);
+
+		Assert.True(updatedOrphanedItem2.IsDeleted);
+		Assert.NotNull(updatedOrphanedItem2.DeletedAt);
+		Assert.NotNull(updatedOrphanedItem2.LastSyncedAt);
+
+		// Verify active item remains unchanged
+		var updatedActiveItem = updatedList.Items.First(i => i.ExternalId == "ext-item-active");
+		Assert.False(updatedActiveItem.IsDeleted);
+		Assert.Null(updatedActiveItem.DeletedAt);
+
+		// Verify external client was called
+		_mockExternalClient.Verify(x => x.GetTodoLists(), Times.Once);
+		_mockTodoItemService.Verify(x => x.GetOrphanedTodoItems(It.Is<HashSet<string>>(ids =>
+			ids.Contains("ext-item-active") && !ids.Contains("ext-item-orphaned-1") && !ids.Contains("ext-item-orphaned-2"))), Times.Once);
+	}
+
+	[Fact]
+	public async Task DetectAndHandleExternalDeletions_WithNoOrphanedEntities_ShouldNotModifyAnything()
+	{
+		// Arrange
+		var activeItem = TodoItemBuilder.Create()
+			.WithDescription("Active Item")
+			.WithExternalId("ext-item-123")
+			.WithIsCompleted(false)
+			.Build();
+
+		var activeList = TodoListBuilder.Create()
+			.WithName("Active List")
+			.WithExternalId("ext-list-456")
+			.WithItem(activeItem)
+			.Build();
+
+		_context.TodoList.Add(activeList);
+		await _context.SaveChangesAsync();
+
+		// External API returns all existing entities
+		var externalItem = ExternalTodoItemBuilder.Create()
+			.WithId("ext-item-123")
+			.WithDescription("Active Item")
+			.WithCompleted(false)
+			.Build();
+
+		var externalList = ExternalTodoListBuilder.Create()
+			.WithId("ext-list-456")
+			.WithName("Active List")
+			.WithItem(externalItem)
+			.Build();
+
+		_mockExternalClient.Setup(x => x.GetTodoLists())
+			.ReturnsAsync(new List<ExternalTodoList> { externalList });
+
+		// Mock service calls to return empty lists (no orphaned entities)
+		_mockTodoListService.Setup(x => x.GetOrphanedTodoLists(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoList>());
+
+		_mockTodoItemService.Setup(x => x.GetOrphanedTodoItems(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoItem>());
+
+		// Act
+		await _syncService.DetectAndHandleExternalDeletions();
+
+		// Assert
+		var updatedList = await _context.TodoList
+			.Include(tl => tl.Items)
+			.FirstAsync();
+
+		// Verify nothing was modified
+		Assert.False(updatedList.IsDeleted);
+		Assert.Null(updatedList.DeletedAt);
+
+		var updatedItem = updatedList.Items.First();
+		Assert.False(updatedItem.IsDeleted);
+		Assert.Null(updatedItem.DeletedAt);
+
+		// Verify external client was called
+		_mockExternalClient.Verify(x => x.GetTodoLists(), Times.Once);
+
+		// Verify no database commits were made (SaveChangesAsync should not be called)
+		// This is implicit since no changes were detected
+	}
+
+	[Fact]
+	public async Task DetectAndHandleExternalDeletions_WithMixedOrphanedEntities_ShouldHandleBothListsAndItems()
+	{
+		// Arrange
+		var fixedTime = new DateTime(2025, 1, 15, 12, 0, 0, DateTimeKind.Utc);
+
+		// Create orphaned list with items
+		var orphanedListItem = TodoItemBuilder.Create()
+			.WithDescription("Orphaned List Item")
+			.WithExternalId("ext-item-orphaned-list")
+			.Build();
+
+		var orphanedList = TodoListBuilder.Create()
+			.WithName("Orphaned List")
+			.WithExternalId("ext-list-orphaned")
+			.WithItem(orphanedListItem)
+			.Build();
+
+		// Create active list with mixed items (some orphaned, some active)
+		var activeItem = TodoItemBuilder.Create()
+			.WithDescription("Active Item")
+			.WithExternalId("ext-item-active")
+			.Build();
+
+		var orphanedItem = TodoItemBuilder.Create()
+			.WithDescription("Orphaned Item")
+			.WithExternalId("ext-item-orphaned")
+			.Build();
+
+		var activeList = TodoListBuilder.Create()
+			.WithName("Active List")
+			.WithExternalId("ext-list-active")
+			.WithItem(activeItem)
+			.WithItem(orphanedItem)
+			.Build();
+
+		_context.TodoList.AddRange(orphanedList, activeList);
+		await _context.SaveChangesAsync();
+
+		// External API returns only the active list with only the active item
+		var externalActiveItem = ExternalTodoItemBuilder.Create()
+			.WithId("ext-item-active")
+			.WithDescription("Active Item")
+			.WithCompleted(false)
+			.Build();
+
+		var externalActiveList = ExternalTodoListBuilder.Create()
+			.WithId("ext-list-active")
+			.WithName("Active List")
+			.WithItem(externalActiveItem)
+			.Build();
+
+		_mockExternalClient.Setup(x => x.GetTodoLists())
+			.ReturnsAsync(new List<ExternalTodoList> { externalActiveList });
+
+		// Mock service calls
+		_mockTodoListService.Setup(x => x.GetOrphanedTodoLists(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoList> { orphanedList });
+
+		_mockTodoItemService.Setup(x => x.GetOrphanedTodoItems(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoItem> { orphanedItem });
+
+		// Act
+		using var mockTimeProvider = new MockTimeProvider(fixedTime);
+		await _syncService.DetectAndHandleExternalDeletions();
+
+		// Assert
+		var updatedOrphanedList = await _context.TodoList
+			.Include(tl => tl.Items)
+			.FirstAsync(tl => tl.Id == orphanedList.Id);
+
+		var updatedActiveList = await _context.TodoList
+			.Include(tl => tl.Items)
+			.FirstAsync(tl => tl.Id == activeList.Id);
+
+		// Verify orphaned list and its items were soft deleted
+		Assert.True(updatedOrphanedList.IsDeleted);
+		Assert.NotNull(updatedOrphanedList.DeletedAt);
+		Assert.All(updatedOrphanedList.Items, item =>
+		{
+			Assert.True(item.IsDeleted);
+			Assert.NotNull(item.DeletedAt);
+		});
+
+		// Verify active list remains active but orphaned item was soft deleted
+		Assert.False(updatedActiveList.IsDeleted);
+		Assert.Null(updatedActiveList.DeletedAt);
+
+		var updatedActiveItem = updatedActiveList.Items.First(i => i.ExternalId == "ext-item-active");
+		var updatedOrphanedItem = updatedActiveList.Items.First(i => i.ExternalId == "ext-item-orphaned");
+
+		Assert.False(updatedActiveItem.IsDeleted);
+		Assert.Null(updatedActiveItem.DeletedAt);
+
+		Assert.True(updatedOrphanedItem.IsDeleted);
+		Assert.NotNull(updatedOrphanedItem.DeletedAt);
+
+		// Verify logging occurred
+		VerifyLogCalled(LogLevel.Information, "Detected external deletion of TodoList");
+		VerifyLogCalled(LogLevel.Information, "Detected external deletion of TodoItem");
+		VerifyLogCalled(LogLevel.Information, "Soft deleted 2 TodoLists that were deleted externally");
+	}
+
+	[Fact]
+	public async Task DetectAndHandleExternalDeletions_WithEmptyExternalResponse_ShouldSoftDeleteAllSyncedEntities()
+	{
+		// Arrange
+		var fixedTime = new DateTime(2025, 1, 15, 12, 0, 0, DateTimeKind.Utc);
+
+		// Create local entities that all have external IDs
+		var item1 = TodoItemBuilder.Create()
+			.WithDescription("Item 1")
+			.WithExternalId("ext-item-1")
+			.Build();
+
+		var item2 = TodoItemBuilder.Create()
+			.WithDescription("Item 2")
+			.WithExternalId("ext-item-2")
+			.Build();
+
+		var list1 = TodoListBuilder.Create()
+			.WithName("List 1")
+			.WithExternalId("ext-list-1")
+			.WithItem(item1)
+			.Build();
+
+		var list2 = TodoListBuilder.Create()
+			.WithName("List 2")
+			.WithExternalId("ext-list-2")
+			.WithItem(item2)
+			.Build();
+
+		// Also create a local-only entity (no external ID) that should not be affected
+		var localOnlyItem = TodoItemBuilder.Create()
+			.WithDescription("Local Only Item")
+			.Build();
+
+		var localOnlyList = TodoListBuilder.Create()
+			.WithName("Local Only List")
+			.WithItem(localOnlyItem)
+			.Build();
+
+		_context.TodoList.AddRange(list1, list2, localOnlyList);
+		await _context.SaveChangesAsync();
+
+		// External API returns empty list
+		_mockExternalClient.Setup(x => x.GetTodoLists())
+			.ReturnsAsync(new List<ExternalTodoList>());
+
+		// Mock service calls - all synced entities should be orphaned
+		_mockTodoListService.Setup(x => x.GetOrphanedTodoLists(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoList> { list1, list2 });
+
+		_mockTodoItemService.Setup(x => x.GetOrphanedTodoItems(It.IsAny<HashSet<string>>()))
+			.ReturnsAsync(new List<TodoItem>());
+
+		// Act
+		using var mockTimeProvider = new MockTimeProvider(fixedTime);
+		await _syncService.DetectAndHandleExternalDeletions();
+
+		// Assert
+		var allLists = await _context.TodoList.Include(tl => tl.Items).ToListAsync();
+
+		var updatedList1 = allLists.First(l => l.Id == list1.Id);
+		var updatedList2 = allLists.First(l => l.Id == list2.Id);
+		var updatedLocalOnlyList = allLists.First(l => l.Id == localOnlyList.Id);
+
+		// Verify synced lists were soft deleted
+		Assert.True(updatedList1.IsDeleted);
+		Assert.True(updatedList2.IsDeleted);
+		Assert.All(updatedList1.Items, item => Assert.True(item.IsDeleted));
+		Assert.All(updatedList2.Items, item => Assert.True(item.IsDeleted));
+
+		// Verify local-only list remains unchanged
+		Assert.False(updatedLocalOnlyList.IsDeleted);
+		Assert.All(updatedLocalOnlyList.Items, item => Assert.False(item.IsDeleted));
+
+		// Verify logging
+		VerifyLogCalled(LogLevel.Information, "Soft deleted 2 TodoLists that were deleted externally");
+	}
+
+	[Fact]
+	public async Task DetectAndHandleExternalDeletions_WithExternalApiFailure_ShouldPropagateException()
+	{
+		// Arrange
+		_mockExternalClient.Setup(x => x.GetTodoLists())
+			.ThrowsAsync(new HttpRequestException("External API unavailable"));
+
+		// Act & Assert
+		var exception = await Assert.ThrowsAsync<HttpRequestException>(
+			() => _syncService.DetectAndHandleExternalDeletions());
+
+		Assert.Equal("External API unavailable", exception.Message);
+
+		// Verify no service calls were made after the external API failure
+		_mockTodoListService.Verify(x => x.GetOrphanedTodoLists(It.IsAny<HashSet<string>>()), Times.Never);
+		_mockTodoItemService.Verify(x => x.GetOrphanedTodoItems(It.IsAny<HashSet<string>>()), Times.Never);
+	}
+
 	public async ValueTask DisposeAsync()
 	{
 		await _context.DisposeAsync();
+	}
+
+	// Helper class for mocking time in tests
+	private class MockTimeProvider : IDisposable
+	{
+		private readonly DateTime _fixedTime;
+
+		public MockTimeProvider(DateTime fixedTime)
+		{
+			_fixedTime = fixedTime;
+		}
+
+		public void Dispose()
+		{
+			// Cleanup if needed
+		}
 	}
 }

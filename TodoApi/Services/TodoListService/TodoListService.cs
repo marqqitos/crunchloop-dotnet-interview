@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Dtos;
-using TodoApi.Dtos.External;
 using TodoApi.Models;
 
 namespace TodoApi.Services.TodoListService;
@@ -16,7 +15,7 @@ public class TodoListService : ITodoListService
 		_logger = logger;
 	}
 
-	public async Task<IList<TodoListResponse>> GetTodoListsAsync()
+	public async Task<IList<TodoListResponse>> GetTodoLists()
 		=> await _context.TodoList
 			.Where(tl => !tl.IsDeleted)
 			.Select(tl => new TodoListResponse
@@ -35,7 +34,7 @@ public class TodoListService : ITodoListService
 			})
 			.ToListAsync();
 
-	public async Task<TodoListResponse?> GetTodoListAsync(long id)
+	public async Task<TodoListResponse?> GetTodoListById(long id)
 		=> await _context.TodoList
 			.Where(tl => !tl.IsDeleted && tl.Id == id)
 			.Select(tl => new TodoListResponse
@@ -54,7 +53,7 @@ public class TodoListService : ITodoListService
 			})
 			.FirstOrDefaultAsync();
 
-	public async Task<TodoListResponse?> UpdateTodoListAsync(long id, UpdateTodoList payload)
+	public async Task<TodoListResponse?> UpdateTodoList(long id, UpdateTodoList payload)
 	{
 		var todoList = await _context.TodoList
 			.Where(tl => !tl.IsDeleted)
@@ -84,7 +83,7 @@ public class TodoListService : ITodoListService
 		};
 	}
 
-	public async Task<TodoListResponse> CreateTodoListAsync(CreateTodoList payload)
+	public async Task<TodoListResponse> CreateTodoList(CreateTodoList payload)
 	{
 		var todoList = new TodoList
 		{
@@ -104,7 +103,7 @@ public class TodoListService : ITodoListService
 		};
 	}
 
-	public async Task<bool> DeleteTodoListAsync(long id)
+	public async Task<bool> DeleteTodoList(long id)
 	{
 		var todoList = await _context.TodoList
 			.Include(tl => tl.Items)
@@ -135,7 +134,7 @@ public class TodoListService : ITodoListService
 		return true;
 	}
 
-	public async Task MarkAsPendingAsync(long todoListId)
+	public async Task MarkAsPending(long todoListId)
 	{
 		var todoList = await _context.TodoList
 			.FirstOrDefaultAsync(tl => tl.Id == todoListId);
@@ -154,7 +153,7 @@ public class TodoListService : ITodoListService
 		}
 	}
 
-	public async Task ClearPendingFlagAsync(long todoListId)
+	public async Task ClearPendingFlag(long todoListId)
 	{
 		var todoList = await _context.TodoList
 			.FirstOrDefaultAsync(tl => tl.Id == todoListId);
@@ -169,7 +168,7 @@ public class TodoListService : ITodoListService
 		}
 	}
 
-	public async Task<IEnumerable<TodoList>> GetTodoListsPendingSync()
+	public async Task<IEnumerable<TodoList>> GetTodoListsPending()
 	{
 		var pendingTodoLists = await _context.TodoList
 				.Where(tl => tl.IsSyncPending ||
@@ -180,36 +179,12 @@ public class TodoListService : ITodoListService
 		return pendingTodoLists;
 	}
 
-	public async Task<bool> ExternalTodoListsMismatch(IEnumerable<ExternalTodoList> externalTodoLists)
-	{
-		var localTodoLists = await _context.TodoList.Where(tl => !tl.IsDeleted).ToListAsync();
-
-		if (externalTodoLists.Count() != localTodoLists.Count())
-			return true;
-
-		foreach (var externalTodoList in externalTodoLists)
-		{
-			var localTodoList = localTodoLists.FirstOrDefault(tl => tl.ExternalId == externalTodoList.Id);
-			if (localTodoList is null)
-				return true;
-		}
-
-		foreach (var localTodoList in localTodoLists)
-		{
-			var externalTodoList = externalTodoLists.FirstOrDefault(tl => tl.Id == localTodoList.ExternalId);
-			if (externalTodoList is null)
-				return true;
-		}
-
-		return false;
-	}
-
-	public async Task<TodoList?> GetTodoListByExternalIdAsync(string externalId)
+	public async Task<TodoList?> GetTodoListByExternalId(string externalId)
 		=> await _context.TodoList
 			.Include(tl => tl.Items)
 			.FirstOrDefaultAsync(tl => tl.ExternalId == externalId);
 
-	public async Task<IEnumerable<TodoList>> GetOrphanedTodoListsAsync(IEnumerable<string> externalListIds)
+	public async Task<IEnumerable<TodoList>> GetOrphanedTodoLists(IEnumerable<string> externalListIds)
 		=> await _context.TodoList
             .Where(tl => !tl.IsDeleted && !string.IsNullOrEmpty(tl.ExternalId) && !externalListIds.Contains(tl.ExternalId))
             .Include(tl => tl.Items.Where(item => !item.IsDeleted))

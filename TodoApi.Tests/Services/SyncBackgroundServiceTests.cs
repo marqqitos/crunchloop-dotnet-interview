@@ -62,7 +62,7 @@ public class SyncBackgroundServiceTests
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(2)); // Cancel after 2 seconds
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList>());
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList>());
 
         // Act
         await _sut.StartAsync(cancellationTokenSource.Token);
@@ -80,7 +80,7 @@ public class SyncBackgroundServiceTests
         var mockOptions = new Mock<IOptions<SyncOptions>>();
         mockOptions.Setup(x => x.Value).Returns(_syncOptions);
 
-		_mockTodoListService.Setup(x => x.GetTodoListsPendingSync()).ReturnsAsync(new List<TodoList>());
+		_mockTodoListService.Setup(x => x.GetTodoListsPending()).ReturnsAsync(new List<TodoList>());
 
         _mockSyncService.Setup(x => x.PerformFullSync())
             .ThrowsAsync(new InvalidOperationException("Test exception"));
