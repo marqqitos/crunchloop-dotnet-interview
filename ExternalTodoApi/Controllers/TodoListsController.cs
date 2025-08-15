@@ -24,21 +24,21 @@ public class TodoListsController : ControllerBase
     public async Task<ActionResult<IEnumerable<TodoList>>> GetTodoLists([FromQuery] DateTime? modified_since = null)
     {
         _logger.LogInformation("Fetching TodoLists with modified_since filter: {ModifiedSince}", modified_since);
-        
+
         var query = _context.TodoLists.Include(tl => tl.Items).AsQueryable();
-        
+
         // Apply delta sync filter if provided
         if (modified_since.HasValue)
         {
             query = query.Where(tl => tl.UpdatedAt >= modified_since.Value);
             _logger.LogInformation("Filtering TodoLists modified since {ModifiedSince}", modified_since.Value);
         }
-        
+
         var todoLists = await query
             .OrderBy(tl => tl.CreatedAt)
             .ToListAsync();
 
-        _logger.LogInformation("Retrieved {Count} TodoLists (filtered: {IsFiltered})", 
+        _logger.LogInformation("Retrieved {Count} TodoLists (filtered: {IsFiltered})",
             todoLists.Count, modified_since.HasValue);
         return Ok(todoLists);
     }
@@ -47,7 +47,7 @@ public class TodoListsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<TodoList>> CreateTodoList([FromBody] CreateTodoListRequest request)
     {
-        _logger.LogInformation("Creating new TodoList '{Name}' with {ItemCount} items", 
+        _logger.LogInformation("Creating new TodoList '{Name}' with {ItemCount} items",
             request.Name, request.Items.Count);
 
         var todoList = new TodoList
@@ -78,26 +78,10 @@ public class TodoListsController : ControllerBase
         _context.TodoLists.Add(todoList);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Created TodoList '{Id}' with {ItemCount} items", 
+        _logger.LogInformation("Created TodoList '{Id}' with {ItemCount} items",
             todoList.Id, todoList.Items.Count);
 
-        return CreatedAtAction(nameof(GetTodoList), new { id = todoList.Id }, todoList);
-    }
-
-    // GET /todolists/{id} (helper method, not in spec but useful)
-    [HttpGet("{id}")]
-    public async Task<ActionResult<TodoList>> GetTodoList(string id)
-    {
-        var todoList = await _context.TodoLists
-            .Include(tl => tl.Items)
-            .FirstOrDefaultAsync(tl => tl.Id == id);
-
-        if (todoList == null)
-        {
-            return NotFound();
-        }
-
-        return Ok(todoList);
+        return CreatedAtAction(nameof(CreateTodoList), new { id = todoList.Id }, todoList);
     }
 
     // PATCH /todolists/{id}
@@ -151,8 +135,8 @@ public class TodoListsController : ControllerBase
     // PATCH /todolists/{todolistId}/todoitems/{todoitemId}
     [HttpPatch("{todolistId}/todoitems/{todoitemId}")]
     public async Task<ActionResult<TodoItem>> UpdateTodoItem(
-        string todolistId, 
-        string todoitemId, 
+        string todolistId,
+        string todoitemId,
         [FromBody] UpdateTodoItemRequest request)
     {
         _logger.LogInformation("Updating TodoItem '{ItemId}' in TodoList '{ListId}'", todoitemId, todolistId);

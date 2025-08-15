@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Polly;
 using TodoApi.Common;
 using TodoApi.Services.ConflictResolver;
@@ -32,6 +33,7 @@ public class TodoListSyncServiceTests : IAsyncDisposable
 	{
 		var options = new DbContextOptionsBuilder<TodoContext>()
 			.UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+			.ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
 			.Options;
 		_context = new TodoContext(options);
 

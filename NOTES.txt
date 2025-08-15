@@ -2,17 +2,19 @@
 
 ## 1. High-Level Overview
 
-This solution implements bidirectional synchronization between a local Todo API and an external Todo API using a periodic batch processing approach. The architecture prioritizes resilience, performance optimization, and handles high-volume scenarios through intelligent batching and delta synchronization.
+This solution implements bidirectional synchronization between a local Todo API and an external Todo API using a periodic sequential processing approach. The architecture prioritizes resilience and provides a solid foundation for moderate-volume scenarios, with planned enhancements for high-volume optimization through an Event-Driven architecture or client-side parallel processing (a workaround for the external API's lack of true batch endpoints) and delta synchronization.
 
 ### Major Components:
 - **Sync Engine**: Orchestrates all synchronization operations with conflict resolution
 - **External API Client**: Manages HTTP communication with retry logic and circuit breaker patterns
-- **Data Mapper**: Handles schema differences between local (long IDs) and external (string IDs, source_id tracking)
+- **Direct Field Mapping**: Handles schema differences through inline ExternalId fields and source_id tracking
 - **Background Service**: Performs periodic synchronization every 5 minutes to minimize API calls
-- **Sync State Manager**: Tracks synchronization timestamps and manages bidirectional ID mappings
+- **Sync State Manager**: Tracks synchronization timestamps and manages sync state
 
 ### Synchronization Approach:
-The solution uses a **"pull-push"** pattern where changes are detected locally, batched, and synchronized with the external API while simultaneously pulling external changes to maintain consistency. The external API serves as the authoritative source for conflict resolution.
+The solution uses a "pull-push" pattern where changes are detected locally and synchronized with the external API while simultaneously pulling external changes to maintain consistency. The external API serves as the authoritative source for conflict resolution.
+
+**Note**: Current implementation processes items sequentially. Parallel processing and high-volume optimization are planned for future phases.
 
 ## 2. Key Design Decisions
 
@@ -23,26 +25,12 @@ The solution uses a **"pull-push"** pattern where changes are detected locally, 
 
 **Trade-offs**: Local user changes may be overwritten, potentially causing user confusion. However, this provides predictable behavior and prevents data inconsistencies across the ecosystem.
 
-### Periodic Batch Synchronization (5-minute intervals)
-**Decision**: Implement scheduled batch processing rather than real-time synchronization.
+### Periodic Sequential Synchronization (5-minute intervals)
+**Decision**: Implement scheduled sequential processing rather than real-time synchronization.
 
-**Rationale**: The requirement explicitly states "minimize API calls to the external API." Batching reduces network overhead, prevents rate limiting issues, and allows for intelligent optimization like parallel processing and bulk operations.
+**Rationale**: The requirement explicitly states "minimize API calls to the external API." Periodic sync reduces network overhead compared to real-time, prevents rate limiting issues, and provides a foundation for future optimizations. **Note**: The external API does not support batch operations, requiring individual API calls for each entity.
 
-**Trade-offs**: Introduces eventual consistency with up to 5-minute delays. However, for typical Todo application usage patterns, this delay is acceptable while significantly improving performance and reducing external API load.
-
-### High-Volume Optimization with Aggressive Batching
-**Decision**: Assume thousands of TodoLists and implement batch sizes of 10 TodoLists per API call with parallel processing.
-
-**Rationale**: High-volume scenarios require careful resource management. The external API's ability to create TodoLists with nested TodoItems in a single call enables efficient bulk operations.
-
-**Trade-offs**: Increased complexity in error handling (partial failures within batches) and higher memory usage. However, this enables linear scalability as data volume grows.
-
-### Schema Mapping with ID Translation
-**Decision**: Implement bidirectional ID mapping between local `long` IDs and external `string` IDs using a dedicated mapping table.
-
-**Rationale**: The external API uses string IDs and includes a `source_id` field for identifying the originating system. This allows proper tracking of entity ownership and enables reliable bidirectional synchronization.
-
-**Trade-offs**: Additional storage overhead for ID mappings and increased complexity in data access patterns. However, this ensures data integrity and enables proper conflict resolution.
+**Trade-offs**: Introduces eventual consistency with up to 5-minute delays. However, for typical Todo application usage patterns, this delay is acceptable. **Current Limitation**: External API constraints force sequential processing. **Client-side parallel execution** is planned for future phases to work around the API's lack of bulk endpoints and improve performance.
 
 ## 3. Resilience and Error Handling
 
@@ -50,54 +38,69 @@ The solution uses a **"pull-push"** pattern where changes are detected locally, 
 The system handles partial failures within batch operations by continuing to process remaining items rather than failing the entire batch. Each failed item is logged and queued for retry with exponential backoff.
 
 ### Multi-Level Retry Strategy
-- **HTTP Level**: Polly library with exponential backoff (3 attempts, 30-second timeout)
-- **Batch Level**: Individual item retry within batches to handle single-item failures
-- **Circuit Breaker**: Prevents cascade failures when external API experiences sustained outages
+- HTTP Level: Polly library with exponential backoff (3 attempts, 30-second timeout)
+- Batch Level Individual item retry within batches to handle single-item failures
+- Circuit Breaker Prevents cascade failures when external API experiences sustained outages
 
 ### Transactional Boundaries
-Database operations are wrapped in transactions to ensure consistency. If external API calls succeed but local database updates fail, compensation actions are triggered to maintain synchronization state integrity.
+All local database modifications within a single synchronization operation (e.g., updating a list and its items) are wrapped in atomic transactions. If any part of the operation fails—whether it's an external API call or a database write—the entire transaction is rolled back. This guarantees that the local database is never left in a partially synchronized, inconsistent state.
 
 ### Comprehensive Logging
 Structured JSON logging with correlation IDs enables tracking of synchronization operations across distributed components. All sync operations, failures, and performance metrics are logged for debugging and monitoring.
 
-## 4. Edge Cases
+## 4. Edge Cases Handled
 
 ### Concurrent Modification Detection
-Uses timestamp-based conflict detection by comparing local `LastModified` against `LastSyncedAt` timestamps, combined with external `updated_at` values to identify conflicts accurately.
+The system uses a timestamp-based approach (`LastModified`, `LastSyncedAt`, and external `updated_at`) to detect concurrent modifications. The conflict resolution strategy then determines the outcome.
 
-### Large Dataset Initial Synchronization
-Implements chunked processing with progress tracking to handle initial sync of large datasets without memory overflow or timeout issues.
+### Sequential Processing and Failures
+The synchronization logic processes each `TodoList` sequentially. A failure in syncing one list (after retries) does not halt the entire process. The failure is logged, and the service continues with the next list, ensuring that one problematic item does not block others.
 
-### Sequence Dependencies
-Ensures TodoList entities are synchronized before their associated TodoItems to maintain referential integrity. Uses dependency ordering in batch processing logic.
+### External Deletions
+The service correctly detects when a `TodoList` or `TodoItem` that exists locally has been deleted from the external source. It handles this by soft-deleting the corresponding local entity to maintain consistency.
 
-### Network Timeout and Rate Limiting
-Implements adaptive backoff strategies that respect external API rate limits and handle network timeouts gracefully without data corruption.
+## 5. Areas for Improvement
 
-### Data Integrity Validation
-Validates data before and after synchronization operations to detect corruption or schema mismatches, with automatic rollback capabilities for failed validations.
+### **Performance & Scalability**
+- **Caching Layer (Redis)**
+  - **Benefit**: Reduce redundant external API calls for frequently accessed data
+  - **Implementation**: Redis integration with configurable TTL and invalidation strategies
+  - **Impact**: Improved response times and reduced external API load
 
-## 5. Areas for Future Improvement
+- **Event-Driven Architecture**
+  - **Benefit**: Real-time synchronization instead of periodic batch processing
+  - **Implementation**: Message queue-based architecture with event sourcing
+  - **Impact**: Near real-time sync with better scalability
 
-### Performance Enhancements
-- **Caching Layer**: Redis implementation for frequently accessed external API data to reduce redundant calls
-- **Delta Sync Optimization**: More granular change tracking using field-level timestamps
-- **Connection Pooling**: HTTP connection optimization for sustained high-throughput scenarios
+- **Client-Side Parallel Processing**
+  - **Benefit**: Enable handling of thousands of TodoLists efficiently by running multiple API calls concurrently.
+  - **Implementation**: As the external API does not support bulk operations, this involves processing items in client-side groups (e.g., 10 at a time) and executing the individual API calls for that group in parallel.
+  - **Impact**: 10x+ performance improvement for large datasets, limited by API rate limits and client resources.
 
-### Resilience Improvements
-- **Event-Driven Architecture**: Replace periodic sync with message queue-based real-time synchronization
-- **Offline Queue**: Support for disconnected operation with local queue persistence
-- **Health Monitoring**: Comprehensive health checks and automatic degradation handling
+- **Parallel Execution Engine**
+  - **Benefit**: Dramatically reduce sync time for independent operations
+  - **Implementation**: Task-based parallel processing with configurable concurrency limits
+  - **Impact**: Linear scalability as data volume grows
 
-### Operational Capabilities
-- **Configuration Hot-Reload**: Runtime adjustment of sync parameters without service restart
-- **Sync Progress Dashboard**: Real-time monitoring of synchronization status and performance metrics
-- **Data Reconciliation Tools**: Utilities for detecting and resolving data discrepancies
+- **Memory-Efficient Chunking**
+  - **Benefit**: Handle large datasets without memory overflow (at least on our local database)
+  - **Implementation**: Streaming/chunked processing with progress tracking
+  - **Impact**: Support for 100k+ TodoLists without performance degradation
 
-### Security Considerations
-- **Authentication Integration**: Support for OAuth2 or API key authentication with the external API
-- **Data Encryption**: End-to-end encryption for sensitive Todo data in transit
-- **Audit Trail Enhancement**: Detailed logging for compliance and forensic analysis
+### **Operational Excellence**
+- **Progress Tracking & Monitoring**
+  - **Benefit**: Real-time visibility into sync operations and performance metrics
+  - **Implementation**: Dashboard with sync progress, success rates, and performance analytics
+  - **Impact**: Better operational visibility and faster issue resolution
+
+### **Advanced Features**
+- **Offline Queue Support**
+  - **Benefit**: Handle disconnected scenarios gracefully
+  - **Implementation**: Local queue persistence with conflict resolution on reconnection
+  - **Impact**: Improved reliability in unstable network conditions
+
+### **Others**
+- **Custom Exception Types**: Replace generic exception catching with domain-specific exception types for better error handling and debugging
 
 ## 6. Assumptions
 
@@ -115,16 +118,32 @@ Validates data before and after synchronization operations to detect corruption 
 ### Usage Patterns
 - **Data Volume Growth**: Linear growth pattern rather than exponential spikes
 - **Concurrent Usage**: Moderate concurrent user activity with typical Todo application usage patterns
-- **Change Frequency**: Most TodoLists and TodoItems have moderate update frequencies, making batch processing efficient
+- **Change Frequency**: Most TodoLists and TodoItems have moderate update frequencies, making time-lapsed processing efficient
 
 ### Business Requirements
 - **Eventual Consistency**: 5-minute synchronization delays are acceptable for the business use case
 - **External Authority**: External API serves as the authoritative source for conflict resolution
-- **Unicode Support**: Both systems support international character sets for global user base
+- **Unique Item Descriptions**: Item descriptions within a TodoList should be unique
 
+## 7. External API Limitations & Constraints
 
+### **API Endpoint Limitations**
+Based on analysis of the external API specification:
 
-//Change Exceptions catched with custom ones
-//Asumo que cuando se crea o actualiza un item el valor updated_at de la lista tambien se actualiza
-//Escenario donde se crea una lista vacia y luego se le agregan items no se puede sincronizar porque la API externa no lo permite
-//Asumo que las descripciones para un item dentro de una lista son unicas (ver mejor forma de manejar esto, tal vez borrar la lista y volverla a crear localmente?)
+#### **Missing Endpoints (Not Available)**
+- **❌ Create TodoItem Individually**: No `POST /todolists/{id}/todoitems` endpoint
+- **❌ Get Single TodoList**: No `GET /todolists/{id}` endpoint
+- **❌ Get Single TodoItem**: No `GET /todolists/{id}/todoitems/{itemId}` endpoint
+- **❌ Bulk Operations**: No batch create/update/delete endpoints
+- **❌ Search/Filter**: No query parameters for filtering or searching
+
+### **Constraints**
+- **TodoList Creation**: Must include items during creation - cannot create or assign them later to a list
+- **No Item Addition**: Cannot add new items to existing lists (only update/delete existing ones)
+- **Item Updates**: Can only update `description` and `completed` fields
+- **List Updates**: Can only update the `name` field
+
+### **Workaround Strategies Required**
+1. **Empty List Handling**: Create lists with placeholder items, then update them
+2. **Item Addition**: Delete and recreate the entire TodoList with new items
+3. **Bulk Operations**: Implement client-side parallel processing as a workaround. This involves grouping entities and making individual API calls for them concurrently, instead of true batching in a single request.

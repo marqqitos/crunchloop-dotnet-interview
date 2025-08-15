@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Options;
 using Moq.Protected;
 using System.Net;
@@ -32,6 +33,7 @@ public class RetryIntegrationTests : IAsyncDisposable
     {
         var options = new DbContextOptionsBuilder<TodoContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
 
         _context = new TodoContext(options);
